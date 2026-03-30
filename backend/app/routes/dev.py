@@ -12,7 +12,7 @@ from app.models.dispute import Dispute, DisputeStatus
 from app.models.user import User
 from app.routes.auth import get_current_user
 from app.schemas.dispute import DisputeResponse
-from app.services.reason_codes import map_stripe_reason_to_code
+from app.services.reason_codes import get_reason_description, get_reason_label, map_stripe_reason_to_code
 
 router = APIRouter(prefix="/dev", tags=["dev"])
 
@@ -59,4 +59,7 @@ def seed_test_dispute(
     db.add(dispute)
     db.commit()
     db.refresh(dispute)
-    return DisputeResponse.model_validate(dispute)
+    resp = DisputeResponse.model_validate(dispute)
+    resp.reason_label = get_reason_label(dispute.reason_code, dispute.reason)
+    resp.reason_description = get_reason_description(dispute.reason_code, dispute.reason)
+    return resp

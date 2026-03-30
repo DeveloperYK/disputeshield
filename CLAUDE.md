@@ -97,12 +97,13 @@ Development: `http://localhost:8000/api`
 - Backend: pytest (100 tests currently passing)
 - Frontend: Vitest + React Testing Library for components, Playwright for E2E
 
-## Pre-Push Gate (MANDATORY)
-**Before ANY push to remote, ALL of the following must pass:**
+## After Every Change (MANDATORY)
+After making any code change, immediately run all tests and push:
 
-1. **Backend tests:** `cd backend && python3 -m pytest -v` — all 100+ tests must pass
+1. **Backend tests:** `cd backend && python3 -m pytest -v` — all tests must pass
 2. **Frontend build:** `cd frontend && npx next build` — must compile with zero errors
 3. **Playwright E2E:** `cd frontend && npx playwright test` — all E2E tests must pass
+4. **Commit & push** the changes
 
 If any step fails, fix it before pushing. No exceptions. No `--force`. No skipping.
 

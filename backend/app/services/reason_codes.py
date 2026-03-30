@@ -88,3 +88,51 @@ def map_stripe_reason_to_code(stripe_reason: str) -> Optional[ReasonCodeInfo]:
     Returns None if no matching code is found.
     """
     return _STRIPE_REASON_INDEX.get(stripe_reason)
+
+
+# Human-readable labels for Stripe reason strings (used when no reason code is available)
+_STRIPE_REASON_LABELS: Dict[str, str] = {
+    "fraudulent": "Suspected Fraud",
+    "product_not_received": "Product Not Received",
+    "duplicate": "Duplicate Charge",
+    "subscription_canceled": "Cancelled Subscription",
+    "product_unacceptable": "Product Issue",
+    "credit_not_processed": "Refund Not Processed",
+    "incorrect_amount": "Wrong Amount",
+    "general": "General Dispute",
+    "unrecognized": "Unrecognized Charge",
+}
+
+# Human-readable labels for reason code categories
+_CATEGORY_LABELS: Dict[str, str] = {
+    "fraud": "Suspected Fraud",
+    "consumer_dispute": "Customer Dispute",
+    "processing_error": "Processing Error",
+    "authorization": "Authorization Issue",
+}
+
+
+def get_reason_label(reason_code: Optional[str], stripe_reason: str) -> str:
+    """Return a short, merchant-friendly label for a dispute reason.
+
+    Prioritises the reason code description (first sentence before the period),
+    falling back to the Stripe reason label.
+    """
+    if reason_code:
+        info = get_reason_code_info(reason_code)
+        if info:
+            # Take the short title before the first period
+            short = info.description.split(".")[0].strip()
+            return short
+
+    return _STRIPE_REASON_LABELS.get(stripe_reason, stripe_reason.replace("_", " ").title())
+
+
+def get_reason_description(reason_code: Optional[str], stripe_reason: str) -> str:
+    """Return the full human-readable description for a dispute reason."""
+    if reason_code:
+        info = get_reason_code_info(reason_code)
+        if info:
+            return info.description
+
+    return _STRIPE_REASON_LABELS.get(stripe_reason, stripe_reason.replace("_", " ").title())

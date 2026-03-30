@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -15,6 +16,8 @@ class DisputeResponse(BaseModel):
     currency: str
     reason: str
     reason_code: str | None
+    reason_label: str | None = None
+    reason_description: str | None = None
     network: str | None
     status: DisputeStatus
     customer_email: str | None

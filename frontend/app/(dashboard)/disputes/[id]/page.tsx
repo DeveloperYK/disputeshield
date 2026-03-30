@@ -233,7 +233,7 @@ export default function DisputeDetailPage({
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <CreditCard className="w-3.5 h-3.5" />
-              {dispute.reason_code || dispute.reason}
+              {dispute.reason_label || dispute.reason.replace("_", " ")}
               {dispute.network && (
                 <span className="capitalize ml-1">({dispute.network})</span>
               )}
@@ -257,6 +257,13 @@ export default function DisputeDetailPage({
               </span>
             )}
           </div>
+
+          {/* Plain English explanation of what this dispute means */}
+          {dispute.reason_description && (
+            <p className="text-sm text-muted-foreground/80 mt-3 max-w-xl leading-relaxed">
+              {dispute.reason_description}
+            </p>
+          )}
         </div>
 
         {/* Win probability gauge */}

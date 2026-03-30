@@ -18,10 +18,19 @@ from app.schemas.dispute import (
 )
 from app.schemas.evidence import EvidenceCreate, EvidenceResponse
 from app.services.analysis_engine import AnalysisInput, analyze_dispute
+from app.services.reason_codes import get_reason_description, get_reason_label
 from app.services.response_generator import ResponseInput, generate_representment_letter
 from app.services.stripe_service import pull_evidence_from_stripe, submit_evidence_to_stripe
 
 router = APIRouter(prefix="/disputes", tags=["disputes"])
+
+
+def _enrich_dispute_response(dispute: Dispute) -> DisputeResponse:
+    """Build a DisputeResponse with human-readable reason labels."""
+    resp = DisputeResponse.model_validate(dispute)
+    resp.reason_label = get_reason_label(dispute.reason_code, dispute.reason)
+    resp.reason_description = get_reason_description(dispute.reason_code, dispute.reason)
+    return resp
 
 
 @router.get("", response_model=DisputeListResponse)
@@ -36,7 +45,7 @@ def list_disputes(
         .all()
     )
     return DisputeListResponse(
-        disputes=[DisputeResponse.model_validate(d) for d in disputes],
+        disputes=[_enrich_dispute_response(d) for d in disputes],
         total=len(disputes),
     )
 
@@ -48,7 +57,7 @@ def get_dispute(
     db: Session = Depends(get_db),
 ):
     dispute = _get_user_dispute(db, dispute_id, current_user)
-    return DisputeResponse.model_validate(dispute)
+    return _enrich_dispute_response(dispute)
 
 
 @router.post("/{dispute_id}/pull-evidence", response_model=list[EvidenceResponse])
@@ -205,7 +214,7 @@ def skip_dispute(
     dispute.status = DisputeStatus.SKIPPED
     db.commit()
     db.refresh(dispute)
-    return DisputeResponse.model_validate(dispute)
+    return _enrich_dispute_response(dispute)
 
 
 @router.post("/{dispute_id}/submit", response_model=DisputeResponse)
@@ -252,7 +261,7 @@ def submit_response(
     dispute.status = DisputeStatus.RESPONSE_SUBMITTED
     db.commit()
     db.refresh(dispute)
-    return DisputeResponse.model_validate(dispute)
+    return _enrich_dispute_response(dispute)
 
 
 def _get_user_dispute(

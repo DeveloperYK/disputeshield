@@ -14,6 +14,8 @@ export interface Dispute {
   currency: string;
   reason: string;
   reason_code: string | null;
+  reason_label: string | null;
+  reason_description: string | null;
   network: string | null;
   status: DisputeStatus;
   customer_email: string | null;

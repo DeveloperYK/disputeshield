@@ -108,7 +108,7 @@ export function DisputeCard({ dispute, index }: DisputeCardProps) {
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <CreditCard className="w-3.5 h-3.5" />
-                  {dispute.reason_code || dispute.reason}
+                  {dispute.reason_label || dispute.reason.replace("_", " ")}
                 </span>
                 {dispute.network && (
                   <span className="capitalize">{dispute.network}</span>
