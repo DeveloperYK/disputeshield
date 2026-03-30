@@ -19,7 +19,7 @@ from app.schemas.dispute import (
 from app.schemas.evidence import EvidenceCreate, EvidenceResponse
 from app.services.analysis_engine import AnalysisInput, analyze_dispute
 from app.services.response_generator import ResponseInput, generate_representment_letter
-from app.services.stripe_service import pull_evidence_from_stripe
+from app.services.stripe_service import pull_evidence_from_stripe, submit_evidence_to_stripe
 
 router = APIRouter(prefix="/disputes", tags=["disputes"])
 
@@ -222,6 +222,33 @@ def submit_response(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No response generated yet. Generate a response first.",
         )
+
+    if not current_user.stripe_access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Stripe account not connected",
+        )
+
+    # Gather evidence and submit to Stripe
+    evidence_items = (
+        db.query(Evidence)
+        .filter(Evidence.dispute_id == dispute.id)
+        .all()
+    )
+
+    try:
+        submit_evidence_to_stripe(
+            dispute=dispute,
+            evidence_items=evidence_items,
+            generated_response=dispute.generated_response,
+            access_token=current_user.stripe_access_token,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to submit evidence to Stripe: {str(e)}",
+        )
+
     dispute.status = DisputeStatus.RESPONSE_SUBMITTED
     db.commit()
     db.refresh(dispute)

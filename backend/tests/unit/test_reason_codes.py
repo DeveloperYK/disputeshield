@@ -5,6 +5,7 @@ from app.services.reason_codes import (
     get_reason_code_info,
     get_all_reason_codes,
     get_reason_codes_by_network,
+    map_stripe_reason_to_code,
     ReasonCodeInfo,
 )
 
@@ -77,6 +78,51 @@ class TestReasonCodeDatabase:
         info = get_reason_code_info("10.4")
         assert info.stripe_reasons is not None
         assert "fraudulent" in info.stripe_reasons
+
+    def test_map_stripe_reason_fraudulent(self):
+        """Stripe 'fraudulent' should map to a fraud reason code."""
+        info = map_stripe_reason_to_code("fraudulent")
+        assert info is not None
+        assert info.category == "fraud"
+        assert "fraudulent" in info.stripe_reasons
+
+    def test_map_stripe_reason_product_not_received(self):
+        info = map_stripe_reason_to_code("product_not_received")
+        assert info is not None
+        assert info.category == "consumer_dispute"
+
+    def test_map_stripe_reason_duplicate(self):
+        info = map_stripe_reason_to_code("duplicate")
+        assert info is not None
+        assert info.code == "12.6"
+
+    def test_map_stripe_reason_subscription_canceled(self):
+        info = map_stripe_reason_to_code("subscription_canceled")
+        assert info is not None
+
+    def test_map_stripe_reason_product_unacceptable(self):
+        info = map_stripe_reason_to_code("product_unacceptable")
+        assert info is not None
+
+    def test_map_stripe_reason_credit_not_processed(self):
+        info = map_stripe_reason_to_code("credit_not_processed")
+        assert info is not None
+
+    def test_map_stripe_reason_incorrect_amount(self):
+        info = map_stripe_reason_to_code("incorrect_amount")
+        assert info is not None
+
+    def test_map_stripe_reason_general(self):
+        info = map_stripe_reason_to_code("general")
+        assert info is not None
+
+    def test_map_stripe_reason_unrecognized(self):
+        info = map_stripe_reason_to_code("unrecognized")
+        assert info is not None
+
+    def test_map_unknown_stripe_reason_returns_none(self):
+        info = map_stripe_reason_to_code("totally_fake_reason")
+        assert info is None
 
     def test_common_fraud_codes_exist(self):
         """Verify the most common chargeback reason codes are in our database."""

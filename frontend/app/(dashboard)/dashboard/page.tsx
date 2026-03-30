@@ -12,7 +12,7 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
-import { listDisputes, getAnalytics } from "@/lib/api";
+import { listDisputes, getAnalytics, seedTestDispute } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Dispute, Analytics } from "@/lib/types";
 import { DisputeCard } from "@/components/disputes/dispute-card";
@@ -25,24 +25,38 @@ export default function DashboardPage() {
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+
+  async function loadData() {
+    try {
+      const [disputeData, analyticsData] = await Promise.all([
+        listDisputes(),
+        getAnalytics(),
+      ]);
+      setDisputes(disputeData.disputes);
+      setAnalytics(analyticsData);
+    } catch {
+      // Silently handle — empty states will show
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [disputeData, analyticsData] = await Promise.all([
-          listDisputes(),
-          getAnalytics(),
-        ]);
-        setDisputes(disputeData.disputes);
-        setAnalytics(analyticsData);
-      } catch {
-        // Silently handle — empty states will show
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    loadData();
   }, []);
+
+  async function handleSeedDispute() {
+    setSeeding(true);
+    try {
+      await seedTestDispute();
+      await loadData();
+    } catch {
+      // handle error
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -60,17 +74,31 @@ export default function DashboardPage() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">
-          {user?.business_name
-            ? `${user.business_name}`
-            : "Dashboard"}
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {needsResponse.length > 0
-            ? `${needsResponse.length} dispute${needsResponse.length === 1 ? "" : "s"} need${needsResponse.length === 1 ? "s" : ""} your attention`
-            : "All caught up"}
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">
+            {user?.business_name
+              ? `${user.business_name}`
+              : "Dashboard"}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {needsResponse.length > 0
+              ? `${needsResponse.length} dispute${needsResponse.length === 1 ? "" : "s"} need${needsResponse.length === 1 ? "s" : ""} your attention`
+              : "All caught up"}
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleSeedDispute}
+          disabled={seeding}
+          className="text-xs"
+        >
+          {seeding ? (
+            <Loader2 className="w-3 h-3 animate-spin mr-1" />
+          ) : null}
+          + Test dispute
+        </Button>
       </div>
 
       {/* Stats */}

@@ -62,3 +62,29 @@ def get_all_reason_codes() -> List[ReasonCodeInfo]:
 def get_reason_codes_by_network(network: str) -> List[ReasonCodeInfo]:
     """Return all reason codes for a given card network."""
     return [rc for rc in _REASON_CODES.values() if rc.network == network]
+
+
+def _build_stripe_reason_index() -> Dict[str, ReasonCodeInfo]:
+    """Build a reverse lookup from Stripe reason string → best matching reason code.
+
+    When multiple codes match the same Stripe reason, prefer the one with
+    the highest base win rate (most common / general match).
+    """
+    index: Dict[str, ReasonCodeInfo] = {}
+    for info in _REASON_CODES.values():
+        for stripe_reason in info.stripe_reasons:
+            existing = index.get(stripe_reason)
+            if existing is None or info.base_win_rate > existing.base_win_rate:
+                index[stripe_reason] = info
+    return index
+
+
+_STRIPE_REASON_INDEX = _build_stripe_reason_index()
+
+
+def map_stripe_reason_to_code(stripe_reason: str) -> Optional[ReasonCodeInfo]:
+    """Map a Stripe reason string (e.g. 'fraudulent') to the best matching reason code.
+
+    Returns None if no matching code is found.
+    """
+    return _STRIPE_REASON_INDEX.get(stripe_reason)

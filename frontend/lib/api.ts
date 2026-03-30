@@ -185,4 +185,11 @@ export async function createPortal() {
   });
 }
 
+// Dev (test mode only)
+export async function seedTestDispute() {
+  return request<Dispute>("/dev/seed-dispute", {
+    method: "POST",
+  });
+}
+
 export { ApiError };

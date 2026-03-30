@@ -10,6 +10,7 @@ from app.config import settings
 from app.models.dispute import Dispute, DisputeStatus
 from app.models.evidence import Evidence, EvidenceSource, EvidenceType
 from app.models.user import User
+from app.services.reason_codes import map_stripe_reason_to_code
 
 stripe.api_key = settings.stripe_api_key
 
@@ -29,13 +30,20 @@ def get_or_create_dispute_from_webhook(
     evidence_details = dispute_data.get("evidence_details", {})
     due_by_ts = evidence_details.get("due_by")
 
+    # Map Stripe reason string to our reason code database
+    stripe_reason = dispute_data["reason"]
+    reason_code_info = map_stripe_reason_to_code(stripe_reason)
+    mapped_reason_code = reason_code_info.code if reason_code_info else None
+    mapped_network = reason_code_info.network if reason_code_info else dispute_data.get("payment_method_details", {}).get("type")
+
     dispute_values = {
         "stripe_charge_id": charge if isinstance(charge, str) else charge.get("id", ""),
         "stripe_payment_intent_id": payment_intent if isinstance(payment_intent, str) else None,
         "amount": dispute_data["amount"],
         "currency": dispute_data["currency"],
-        "reason": dispute_data["reason"],
-        "network": dispute_data.get("payment_method_details", {}).get("type"),
+        "reason": stripe_reason,
+        "reason_code": mapped_reason_code,
+        "network": mapped_network,
         "customer_email": _extract_customer_email(dispute_data),
         "customer_name": _extract_customer_name(dispute_data),
         "dispute_created_at": datetime.fromtimestamp(
@@ -132,6 +140,73 @@ def pull_evidence_from_stripe(
     db.commit()
 
     return evidence_items
+
+
+# Mapping from our EvidenceType to Stripe's dispute evidence field names
+# See: https://docs.stripe.com/api/disputes/update
+_EVIDENCE_TYPE_TO_STRIPE_FIELD: dict[str, str] = {
+    "transaction_record": "uncategorized_text",
+    "customer_communication": "customer_communication",
+    "shipping_tracking": "shipping_tracking_number",
+    "delivery_confirmation": "shipping_documentation",
+    "refund_policy": "refund_policy",
+    "customer_signature": "customer_signature",
+    "receipt": "receipt",
+    "screenshot": "uncategorized_file",
+    "email_thread": "customer_communication",
+    "custom_document": "uncategorized_text",
+}
+
+
+def submit_evidence_to_stripe(
+    dispute: Dispute,
+    evidence_items: list[Evidence],
+    generated_response: str | None,
+    access_token: str,
+) -> dict:
+    """Submit compiled evidence to Stripe for a dispute.
+
+    Calls stripe.Dispute.modify() with the evidence dict, then submits it.
+    Returns the updated Stripe dispute object.
+    """
+    evidence_payload: dict[str, str] = {}
+
+    # Add the generated representment letter as uncategorized_text
+    if generated_response:
+        evidence_payload["uncategorized_text"] = generated_response
+
+    # Map evidence items to Stripe fields
+    for item in evidence_items:
+        stripe_field = _EVIDENCE_TYPE_TO_STRIPE_FIELD.get(
+            item.evidence_type.value, "uncategorized_text"
+        )
+
+        # Stripe evidence fields are single values, not arrays.
+        # For text fields, concatenate if multiple items map to the same field.
+        if item.file_url and stripe_field.endswith("_file"):
+            evidence_payload[stripe_field] = item.file_url
+        elif item.file_url and stripe_field in ("receipt", "shipping_documentation", "customer_signature"):
+            evidence_payload[stripe_field] = item.file_url
+        elif item.content:
+            existing = evidence_payload.get(stripe_field, "")
+            separator = "\n\n---\n\n" if existing else ""
+            evidence_payload[stripe_field] = existing + separator + item.content
+
+    # Add customer info if available
+    if dispute.customer_email:
+        evidence_payload["customer_email_address"] = dispute.customer_email
+    if dispute.customer_name:
+        evidence_payload["customer_name"] = dispute.customer_name
+
+    # Submit evidence to Stripe
+    updated_dispute = stripe.Dispute.modify(
+        dispute.stripe_dispute_id,
+        evidence=evidence_payload,
+        submit=True,
+        api_key=access_token,
+    )
+
+    return dict(updated_dispute)
 
 
 def _extract_customer_email(dispute_data: dict) -> str | None:

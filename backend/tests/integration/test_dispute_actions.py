@@ -1,6 +1,8 @@
 """Integration tests for dispute action endpoints (skip, update status)."""
 from __future__ import annotations
 
+from unittest.mock import patch
+
 
 def test_skip_dispute(client, auth_headers, sample_dispute):
     response = client.post(
@@ -26,17 +28,25 @@ def test_skip_dispute_unauthenticated(client, sample_dispute):
 
 
 def test_submit_response(client, auth_headers, db, sample_dispute):
-    # First set a generated response on the dispute
+    # First set a generated response and Stripe access token
     from app.models.dispute import Dispute
+    from app.models.user import User
 
     dispute = db.query(Dispute).filter(Dispute.id == sample_dispute.id).first()
     dispute.generated_response = "Dear team, we contest this chargeback..."
+
+    user = db.query(User).filter(User.id == dispute.user_id).first()
+    user.stripe_access_token = "sk_test_token"
     db.commit()
 
-    response = client.post(
-        f"/api/disputes/{sample_dispute.id}/submit",
-        headers=auth_headers,
-    )
+    with patch(
+        "app.services.stripe_service.stripe.Dispute.modify",
+        return_value={"id": dispute.stripe_dispute_id, "status": "under_review"},
+    ):
+        response = client.post(
+            f"/api/disputes/{sample_dispute.id}/submit",
+            headers=auth_headers,
+        )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "response_submitted"

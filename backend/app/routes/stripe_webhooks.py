@@ -52,14 +52,24 @@ def _handle_dispute_event(db: Session, event: dict) -> None:
     dispute_data = event["data"]["object"]
     account_id = event.get("account")
 
-    if not account_id:
-        return
+    if account_id:
+        user = (
+            db.query(User)
+            .filter(User.stripe_account_id == account_id)
+            .first()
+        )
+    else:
+        # Local dev / direct mode: no Connect account in event.
+        # Fall back to any user that has a Stripe account connected,
+        # or failing that, the first user in the DB.
+        user = (
+            db.query(User)
+            .filter(User.stripe_account_id.isnot(None))
+            .first()
+        )
+        if user is None:
+            user = db.query(User).first()
 
-    user = (
-        db.query(User)
-        .filter(User.stripe_account_id == account_id)
-        .first()
-    )
     if user is None:
         return
 
