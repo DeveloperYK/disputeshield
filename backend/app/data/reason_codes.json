@@ -1,0 +1,479 @@
+[
+  {
+    "code": "10.4",
+    "network": "visa",
+    "category": "fraud",
+    "description": "Other Fraud — Card Absent Environment. The cardholder claims they did not authorize or participate in the transaction.",
+    "base_win_rate": 0.35,
+    "required_evidence": [
+      "transaction_record",
+      "customer_communication"
+    ],
+    "recommended_evidence": [
+      "delivery_confirmation",
+      "customer_signature",
+      "shipping_tracking",
+      "receipt"
+    ],
+    "stripe_reasons": ["fraudulent"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "10.5",
+    "network": "visa",
+    "category": "fraud",
+    "description": "Visa Fraud Monitoring Program. Transaction identified through Visa's fraud monitoring as potentially fraudulent.",
+    "base_win_rate": 0.20,
+    "required_evidence": [
+      "transaction_record",
+      "customer_communication"
+    ],
+    "recommended_evidence": [
+      "delivery_confirmation",
+      "customer_signature",
+      "shipping_tracking"
+    ],
+    "stripe_reasons": ["fraudulent"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "10.1",
+    "network": "visa",
+    "category": "fraud",
+    "description": "EMV Liability Shift Counterfeit Fraud. A counterfeit card was used at a chip-capable terminal.",
+    "base_win_rate": 0.15,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [
+      "receipt",
+      "customer_signature"
+    ],
+    "stripe_reasons": ["fraudulent"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "10.2",
+    "network": "visa",
+    "category": "fraud",
+    "description": "EMV Liability Shift Non-Counterfeit Fraud. A non-counterfeit card was used fraudulently at a chip-capable terminal.",
+    "base_win_rate": 0.15,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [
+      "receipt",
+      "customer_signature"
+    ],
+    "stripe_reasons": ["fraudulent"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "10.3",
+    "network": "visa",
+    "category": "fraud",
+    "description": "Other Fraud — Card Present Environment. Cardholder denies participation in a card-present transaction.",
+    "base_win_rate": 0.25,
+    "required_evidence": [
+      "transaction_record",
+      "receipt"
+    ],
+    "recommended_evidence": [
+      "customer_signature"
+    ],
+    "stripe_reasons": ["fraudulent"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "11.1",
+    "network": "visa",
+    "category": "authorization",
+    "description": "Card Recovery Bulletin. The card number was listed on the Card Recovery Bulletin at the time of the transaction.",
+    "base_win_rate": 0.10,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [],
+    "stripe_reasons": [],
+    "time_limit_days": 30
+  },
+  {
+    "code": "11.2",
+    "network": "visa",
+    "category": "authorization",
+    "description": "Declined Authorization. The authorization request was declined but the merchant completed the transaction anyway.",
+    "base_win_rate": 0.05,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [],
+    "stripe_reasons": ["unrecognized"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "11.3",
+    "network": "visa",
+    "category": "authorization",
+    "description": "No Authorization. The merchant did not obtain authorization for the transaction.",
+    "base_win_rate": 0.10,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [],
+    "stripe_reasons": ["unrecognized"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "12.1",
+    "network": "visa",
+    "category": "processing_error",
+    "description": "Late Presentment. The transaction was not processed within the required timeframe.",
+    "base_win_rate": 0.15,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [],
+    "stripe_reasons": ["general"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "12.2",
+    "network": "visa",
+    "category": "processing_error",
+    "description": "Incorrect Transaction Code. The transaction was processed with an incorrect transaction code.",
+    "base_win_rate": 0.20,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [],
+    "stripe_reasons": ["general"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "12.3",
+    "network": "visa",
+    "category": "processing_error",
+    "description": "Incorrect Currency. The transaction was processed in the wrong currency.",
+    "base_win_rate": 0.25,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [],
+    "stripe_reasons": ["general"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "12.4",
+    "network": "visa",
+    "category": "processing_error",
+    "description": "Incorrect Account Number. The transaction was processed with an incorrect account number.",
+    "base_win_rate": 0.20,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [],
+    "stripe_reasons": ["general"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "12.5",
+    "network": "visa",
+    "category": "processing_error",
+    "description": "Incorrect Amount. The transaction was processed for an incorrect amount.",
+    "base_win_rate": 0.30,
+    "required_evidence": [
+      "transaction_record",
+      "receipt"
+    ],
+    "recommended_evidence": [
+      "customer_communication"
+    ],
+    "stripe_reasons": ["incorrect_amount"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "12.6",
+    "network": "visa",
+    "category": "processing_error",
+    "description": "Duplicate Processing / Paid by Other Means. The transaction was processed more than once or the cardholder paid by other means.",
+    "base_win_rate": 0.35,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [
+      "receipt",
+      "customer_communication"
+    ],
+    "stripe_reasons": ["duplicate"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "13.1",
+    "network": "visa",
+    "category": "consumer_dispute",
+    "description": "Merchandise / Services Not Received. The cardholder claims they did not receive the purchased merchandise or services.",
+    "base_win_rate": 0.45,
+    "required_evidence": [
+      "shipping_tracking",
+      "delivery_confirmation"
+    ],
+    "recommended_evidence": [
+      "customer_communication",
+      "receipt",
+      "customer_signature"
+    ],
+    "stripe_reasons": ["product_not_received"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "13.2",
+    "network": "visa",
+    "category": "consumer_dispute",
+    "description": "Cancelled Recurring Transaction. The cardholder claims a recurring transaction was not cancelled as requested.",
+    "base_win_rate": 0.40,
+    "required_evidence": [
+      "transaction_record",
+      "customer_communication"
+    ],
+    "recommended_evidence": [
+      "refund_policy"
+    ],
+    "stripe_reasons": ["subscription_canceled"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "13.3",
+    "network": "visa",
+    "category": "consumer_dispute",
+    "description": "Not as Described or Defective Merchandise. The cardholder claims the merchandise received was not as described or was defective.",
+    "base_win_rate": 0.40,
+    "required_evidence": [
+      "transaction_record",
+      "customer_communication"
+    ],
+    "recommended_evidence": [
+      "receipt",
+      "shipping_tracking",
+      "refund_policy",
+      "screenshot"
+    ],
+    "stripe_reasons": ["product_unacceptable"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "13.4",
+    "network": "visa",
+    "category": "consumer_dispute",
+    "description": "Counterfeit Merchandise. The cardholder claims the merchandise received was counterfeit.",
+    "base_win_rate": 0.30,
+    "required_evidence": [
+      "transaction_record",
+      "receipt"
+    ],
+    "recommended_evidence": [
+      "customer_communication",
+      "screenshot"
+    ],
+    "stripe_reasons": ["product_unacceptable"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "13.5",
+    "network": "visa",
+    "category": "consumer_dispute",
+    "description": "Misrepresentation. The merchant misrepresented the terms of the transaction.",
+    "base_win_rate": 0.30,
+    "required_evidence": [
+      "transaction_record",
+      "refund_policy"
+    ],
+    "recommended_evidence": [
+      "customer_communication",
+      "screenshot"
+    ],
+    "stripe_reasons": ["product_unacceptable"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "13.6",
+    "network": "visa",
+    "category": "consumer_dispute",
+    "description": "Credit Not Processed. The cardholder claims a credit or refund was not processed as expected.",
+    "base_win_rate": 0.50,
+    "required_evidence": [
+      "transaction_record",
+      "refund_policy"
+    ],
+    "recommended_evidence": [
+      "customer_communication"
+    ],
+    "stripe_reasons": ["credit_not_processed"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "13.7",
+    "network": "visa",
+    "category": "consumer_dispute",
+    "description": "Cancelled Merchandise / Services. The cardholder claims the merchandise or services were cancelled.",
+    "base_win_rate": 0.40,
+    "required_evidence": [
+      "transaction_record",
+      "refund_policy",
+      "customer_communication"
+    ],
+    "recommended_evidence": [
+      "receipt"
+    ],
+    "stripe_reasons": ["general"],
+    "time_limit_days": 30
+  },
+  {
+    "code": "4837",
+    "network": "mastercard",
+    "category": "fraud",
+    "description": "No Cardholder Authorization. The cardholder claims they did not authorize the transaction.",
+    "base_win_rate": 0.30,
+    "required_evidence": [
+      "transaction_record",
+      "customer_communication"
+    ],
+    "recommended_evidence": [
+      "delivery_confirmation",
+      "customer_signature",
+      "shipping_tracking",
+      "receipt"
+    ],
+    "stripe_reasons": ["fraudulent"],
+    "time_limit_days": 45
+  },
+  {
+    "code": "4853",
+    "network": "mastercard",
+    "category": "consumer_dispute",
+    "description": "Cardholder Dispute — Goods or Services Not as Described, Defective, or Not Delivered.",
+    "base_win_rate": 0.40,
+    "required_evidence": [
+      "transaction_record",
+      "shipping_tracking"
+    ],
+    "recommended_evidence": [
+      "delivery_confirmation",
+      "customer_communication",
+      "receipt",
+      "refund_policy"
+    ],
+    "stripe_reasons": ["product_not_received", "product_unacceptable"],
+    "time_limit_days": 45
+  },
+  {
+    "code": "4863",
+    "network": "mastercard",
+    "category": "fraud",
+    "description": "Cardholder Does Not Recognize — Potential Fraud. The cardholder does not recognize the transaction on their statement.",
+    "base_win_rate": 0.35,
+    "required_evidence": [
+      "transaction_record",
+      "customer_communication"
+    ],
+    "recommended_evidence": [
+      "delivery_confirmation",
+      "shipping_tracking",
+      "receipt"
+    ],
+    "stripe_reasons": ["fraudulent", "unrecognized"],
+    "time_limit_days": 45
+  },
+  {
+    "code": "4834",
+    "network": "mastercard",
+    "category": "processing_error",
+    "description": "Point of Interaction Error. A processing error occurred at the point of interaction.",
+    "base_win_rate": 0.25,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [
+      "receipt"
+    ],
+    "stripe_reasons": ["general"],
+    "time_limit_days": 45
+  },
+  {
+    "code": "4831",
+    "network": "mastercard",
+    "category": "processing_error",
+    "description": "Transaction Amount Differs. The amount charged differs from the amount the cardholder agreed to.",
+    "base_win_rate": 0.30,
+    "required_evidence": [
+      "transaction_record",
+      "receipt"
+    ],
+    "recommended_evidence": [
+      "customer_communication"
+    ],
+    "stripe_reasons": ["incorrect_amount"],
+    "time_limit_days": 45
+  },
+  {
+    "code": "4840",
+    "network": "mastercard",
+    "category": "authorization",
+    "description": "Fraudulent Processing of Transactions. Transactions were processed without valid authorization.",
+    "base_win_rate": 0.15,
+    "required_evidence": [
+      "transaction_record"
+    ],
+    "recommended_evidence": [],
+    "stripe_reasons": ["fraudulent"],
+    "time_limit_days": 45
+  },
+  {
+    "code": "4841",
+    "network": "mastercard",
+    "category": "authorization",
+    "description": "Cancelled Recurring or Digital Goods Transaction. A recurring or digital goods transaction was not cancelled as requested.",
+    "base_win_rate": 0.35,
+    "required_evidence": [
+      "transaction_record",
+      "customer_communication"
+    ],
+    "recommended_evidence": [
+      "refund_policy"
+    ],
+    "stripe_reasons": ["subscription_canceled"],
+    "time_limit_days": 45
+  },
+  {
+    "code": "4855",
+    "network": "mastercard",
+    "category": "consumer_dispute",
+    "description": "Goods or Services Not Provided. The cardholder claims the goods or services were not provided.",
+    "base_win_rate": 0.45,
+    "required_evidence": [
+      "shipping_tracking",
+      "delivery_confirmation"
+    ],
+    "recommended_evidence": [
+      "customer_communication",
+      "receipt"
+    ],
+    "stripe_reasons": ["product_not_received"],
+    "time_limit_days": 45
+  },
+  {
+    "code": "4860",
+    "network": "mastercard",
+    "category": "consumer_dispute",
+    "description": "Credit Not Processed. The cardholder claims a credit or refund was promised but not received.",
+    "base_win_rate": 0.45,
+    "required_evidence": [
+      "transaction_record",
+      "refund_policy"
+    ],
+    "recommended_evidence": [
+      "customer_communication"
+    ],
+    "stripe_reasons": ["credit_not_processed"],
+    "time_limit_days": 45
+  }
+]
