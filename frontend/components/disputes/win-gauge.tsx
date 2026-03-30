@@ -10,9 +10,9 @@ interface WinGaugeProps {
 }
 
 function getColor(probability: number): string {
-  if (probability >= 0.45) return "oklch(0.75 0.18 155)";
-  if (probability >= 0.25) return "oklch(0.80 0.16 80)";
-  return "oklch(0.65 0.2 25)";
+  if (probability >= 0.45) return "#059669"; // emerald-600
+  if (probability >= 0.25) return "#d97706"; // amber-600
+  return "#dc2626"; // red-600
 }
 
 function getGlowClass(probability: number): string {
@@ -63,7 +63,7 @@ export function WinGauge({
         <path
           d={`M ${strokeWidth / 2} ${size / 2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth / 2} ${size / 2}`}
           fill="none"
-          stroke="oklch(0.25 0.02 260)"
+          stroke="hsl(220 13% 91%)"
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
@@ -85,8 +85,8 @@ export function WinGauge({
         />
       </svg>
 
-      {/* Number */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center">
+      {/* Number — positioned inside the arc with proper spacing */}
+      <div className="absolute left-1/2 -translate-x-1/2 text-center" style={{ bottom: showLabel ? "20px" : "4px" }}>
         <motion.span
           className="text-3xl font-bold tabular-nums"
           style={{ color }}
@@ -100,7 +100,7 @@ export function WinGauge({
 
       {showLabel && (
         <div
-          className="text-xs font-medium mt-1 uppercase tracking-wider"
+          className="text-xs font-semibold mt-0 uppercase tracking-wider"
           style={{ color }}
         >
           {getLabel(probability)}

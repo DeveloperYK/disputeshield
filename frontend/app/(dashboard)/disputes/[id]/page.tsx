@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft,
   Brain,
@@ -20,10 +21,14 @@ import {
   Sparkles,
   Copy,
   CheckCheck,
+  Shield,
+  ShieldX,
+  ShieldAlert,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +83,55 @@ const evidenceTypeLabels: Record<string, string> = {
   email_thread: "Email Thread",
   custom_document: "Custom Document",
 };
+
+type Recommendation = "fight" | "skip" | "borderline";
+
+function getRecommendationTheme(rec: Recommendation) {
+  switch (rec) {
+    case "fight":
+      return {
+        bg: "bg-emerald-50",
+        border: "border-emerald-200",
+        accent: "text-emerald-700",
+        badgeBg: "bg-emerald-100 text-emerald-800 border-emerald-300",
+        icon: Shield,
+        iconColor: "text-emerald-600",
+        glow: "shadow-[0_0_30px_-5px_rgba(16,185,129,0.2)]",
+        label: "Worth Fighting",
+        sublabel: "Strong case — gather evidence and submit",
+        gradient: "from-emerald-500/10 via-transparent to-transparent",
+        trendIcon: TrendingUp,
+      };
+    case "borderline":
+      return {
+        bg: "bg-amber-50",
+        border: "border-amber-200",
+        accent: "text-amber-700",
+        badgeBg: "bg-amber-100 text-amber-800 border-amber-300",
+        icon: ShieldAlert,
+        iconColor: "text-amber-600",
+        glow: "shadow-[0_0_30px_-5px_rgba(245,158,11,0.2)]",
+        label: "Borderline",
+        sublabel: "Could go either way — depends on your evidence",
+        gradient: "from-amber-500/10 via-transparent to-transparent",
+        trendIcon: TrendingUp,
+      };
+    case "skip":
+      return {
+        bg: "bg-red-50",
+        border: "border-red-200",
+        accent: "text-red-700",
+        badgeBg: "bg-red-100 text-red-800 border-red-300",
+        icon: ShieldX,
+        iconColor: "text-red-500",
+        glow: "shadow-[0_0_30px_-5px_rgba(239,68,68,0.2)]",
+        label: "Skip This One",
+        sublabel: "Low chance of winning — save your time",
+        gradient: "from-red-500/10 via-transparent to-transparent",
+        trendIcon: TrendingDown,
+      };
+  }
+}
 
 export default function DisputeDetailPage({
   params,
@@ -190,6 +244,16 @@ export default function DisputeDetailPage({
     }
   }
 
+  // Derive recommendation from analysis or stored win_probability
+  function deriveRecommendation(d: Dispute): Recommendation | null {
+    if (analysis?.recommendation) return analysis.recommendation;
+    const wp = d.win_probability;
+    if (wp === null) return null;
+    if (wp >= 0.45) return "fight";
+    if (wp >= 0.25) return "borderline";
+    return "skip";
+  }
+
   if (loading || !dispute) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -197,6 +261,9 @@ export default function DisputeDetailPage({
       </div>
     );
   }
+
+  const recommendation = deriveRecommendation(dispute);
+  const theme = recommendation ? getRecommendationTheme(recommendation) : null;
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -209,193 +276,249 @@ export default function DisputeDetailPage({
         Back to disputes
       </Link>
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-8">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold">
-              {formatCurrency(dispute.amount, dispute.currency)}
-            </h1>
-            <Badge
-              variant={
-                dispute.status === "won"
-                  ? "default"
-                  : dispute.status === "lost" ||
-                      dispute.status === "needs_response"
-                    ? "destructive"
-                    : "secondary"
-              }
-            >
-              {dispute.status.replace("_", " ")}
-            </Badge>
-          </div>
+      {/* Header card */}
+      <motion.div
+        className={`rounded-2xl border p-6 mb-8 transition-all duration-700 ${
+          theme
+            ? `${theme.border} ${theme.bg} ${theme.glow}`
+            : "border-border bg-card"
+        }`}
+        layout
+      >
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-3">
+              <h1 className="text-3xl font-bold">
+                {formatCurrency(dispute.amount, dispute.currency)}
+              </h1>
+              <Badge
+                variant={
+                  dispute.status === "won"
+                    ? "default"
+                    : dispute.status === "lost" ||
+                        dispute.status === "needs_response"
+                      ? "destructive"
+                      : "secondary"
+                }
+              >
+                {dispute.status.replace("_", " ")}
+              </Badge>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <CreditCard className="w-3.5 h-3.5" />
-              {dispute.reason_label || dispute.reason.replace("_", " ")}
-              {dispute.network && (
-                <span className="capitalize ml-1">({dispute.network})</span>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground mb-3">
+              <span className="flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5" />
+                {dispute.reason_label || dispute.reason.replace("_", " ")}
+                {dispute.network && (
+                  <span className="capitalize">({dispute.network})</span>
+                )}
+              </span>
+              {dispute.customer_name && (
+                <span className="flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5" />
+                  {dispute.customer_name}
+                </span>
               )}
-            </span>
-            {dispute.customer_name && (
-              <span className="flex items-center gap-1">
-                <User className="w-3.5 h-3.5" />
-                {dispute.customer_name}
-              </span>
-            )}
-            {dispute.customer_email && (
-              <span className="flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5" />
-                {dispute.customer_email}
-              </span>
-            )}
-            {dispute.evidence_due_by && (
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                Due {formatDate(dispute.evidence_due_by)}
-              </span>
+              {dispute.customer_email && (
+                <span className="flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5" />
+                  {dispute.customer_email}
+                </span>
+              )}
+              {dispute.evidence_due_by && (
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  Due {formatDate(dispute.evidence_due_by)}
+                </span>
+              )}
+            </div>
+
+            {dispute.reason_description && (
+              <p className="text-sm text-muted-foreground/70 max-w-xl leading-relaxed">
+                {dispute.reason_description}
+              </p>
             )}
           </div>
 
-          {/* Plain English explanation of what this dispute means */}
-          {dispute.reason_description && (
-            <p className="text-sm text-muted-foreground/80 mt-3 max-w-xl leading-relaxed">
-              {dispute.reason_description}
-            </p>
+          {/* Win probability gauge — properly spaced */}
+          {(dispute.win_probability !== null || analysis) && (
+            <div className="shrink-0 flex flex-col items-center gap-1">
+              <WinGauge
+                probability={
+                  analysis?.win_probability ?? dispute.win_probability ?? 0
+                }
+                size={140}
+              />
+            </div>
           )}
         </div>
 
-        {/* Win probability gauge */}
-        {(dispute.win_probability !== null || analysis) && (
-          <WinGauge
-            probability={analysis?.win_probability ?? dispute.win_probability ?? 0}
-            size={140}
-          />
-        )}
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Left column: Actions + Analysis */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Action buttons */}
-          {dispute.status === "needs_response" && (
-            <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={handleAnalyze}
-                disabled={analyzing}
-                className="glow-primary"
+        {/* Recommendation banner — appears after analysis */}
+        <AnimatePresence>
+          {theme && recommendation && (
+            <motion.div
+              className={`mt-5 pt-5 border-t ${theme.border} flex items-center gap-3`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.4 }}
+            >
+              <div
+                className={`w-10 h-10 rounded-xl ${theme.badgeBg} border flex items-center justify-center`}
               >
-                {analyzing ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Brain className="w-4 h-4 mr-2" />
-                )}
-                {analyzing ? "Analysing..." : "Analyse dispute"}
-              </Button>
+                <theme.icon className={`w-5 h-5 ${theme.iconColor}`} />
+              </div>
+              <div>
+                <p className={`font-semibold ${theme.accent}`}>
+                  {theme.label}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {theme.sublabel}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
-              {(analysis || dispute.win_probability !== null) && (
-                <Button
-                  onClick={handleGenerate}
-                  disabled={generating}
-                  variant="secondary"
-                >
-                  {generating ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <FileText className="w-4 h-4 mr-2" />
-                  )}
-                  {generating ? "Generating..." : "Generate response"}
-                </Button>
+      {/* Action buttons */}
+      {dispute.status === "needs_response" && (
+        <div className="flex flex-wrap gap-3 mb-6">
+          <Button
+            onClick={handleAnalyze}
+            disabled={analyzing}
+            className="glow-primary"
+          >
+            {analyzing ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Brain className="w-4 h-4 mr-2" />
+            )}
+            {analyzing ? "Analysing..." : "Analyse dispute"}
+          </Button>
+
+          {(analysis || dispute.win_probability !== null) && (
+            <Button
+              onClick={handleGenerate}
+              disabled={generating}
+              variant="secondary"
+            >
+              {generating ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
               )}
-
-              <Button onClick={handleSkip} variant="ghost">
-                <SkipForward className="w-4 h-4 mr-2" />
-                Skip
-              </Button>
-            </div>
+              {generating ? "Generating..." : "Generate response"}
+            </Button>
           )}
 
+          <Button onClick={handleSkip} variant="ghost">
+            <SkipForward className="w-4 h-4 mr-2" />
+            Skip
+          </Button>
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Left column: Analysis + Letter */}
+        <div className="md:col-span-2 space-y-6">
           {/* AI Analysis */}
           <AnimatePresence>
             {(analysis || dispute.win_explanation) && (
               <motion.div
-                className="rounded-xl border border-border bg-card p-6 noise"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
+                className={`rounded-2xl border overflow-hidden ${
+                  theme ? `${theme.border}` : "border-border"
+                }`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.5 }}
               >
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold">AI Analysis</h3>
-                </div>
+                {/* Gradient top strip */}
+                <div
+                  className={`h-1 ${
+                    recommendation === "fight"
+                      ? "bg-gradient-to-r from-emerald-400 to-emerald-600"
+                      : recommendation === "borderline"
+                        ? "bg-gradient-to-r from-amber-400 to-amber-600"
+                        : "bg-gradient-to-r from-red-400 to-red-600"
+                  }`}
+                />
 
-                {analysis && (
-                  <>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge
-                        variant={
-                          analysis.recommendation === "fight"
-                            ? "default"
-                            : analysis.recommendation === "skip"
-                              ? "destructive"
-                              : "secondary"
-                        }
-                      >
-                        Recommendation:{" "}
-                        {analysis.recommendation.toUpperCase()}
-                      </Badge>
+                <div className="p-6 bg-card">
+                  <div className="flex items-center gap-2 mb-5">
+                    <Sparkles
+                      className={`w-4 h-4 ${theme?.iconColor ?? "text-primary"}`}
+                    />
+                    <h3 className="font-semibold">AI Analysis</h3>
+                  </div>
+
+                  {analysis && (
+                    <div className="space-y-5">
+                      {/* Rendered markdown explanation */}
+                      <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-headings:font-semibold prose-headings:text-base prose-p:text-muted-foreground prose-p:leading-relaxed prose-li:text-muted-foreground prose-strong:text-foreground prose-ul:my-2 prose-li:my-0.5">
+                        <ReactMarkdown>{analysis.explanation}</ReactMarkdown>
+                      </div>
+
+                      {/* Key Factors */}
+                      {analysis.key_factors.length > 0 && (
+                        <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                            Key Factors
+                          </h4>
+                          <ul className="space-y-2">
+                            {analysis.key_factors.map((f, i) => (
+                              <motion.li
+                                key={i}
+                                className="text-sm flex items-start gap-2"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.1 * i }}
+                              >
+                                <Check
+                                  className={`w-4 h-4 mt-0.5 shrink-0 ${theme?.iconColor ?? "text-primary"}`}
+                                />
+                                <span>{f}</span>
+                              </motion.li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Missing Evidence */}
+                      {analysis.missing_evidence.length > 0 && (
+                        <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+                          <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-3">
+                            Missing Evidence
+                          </h4>
+                          <ul className="space-y-2">
+                            {analysis.missing_evidence.map((e, i) => (
+                              <motion.li
+                                key={i}
+                                className="text-sm flex items-start gap-2 text-amber-800"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.1 * i }}
+                              >
+                                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+                                <span>
+                                  {evidenceTypeLabels[e] || e}
+                                </span>
+                              </motion.li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
+                  )}
 
-                    <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                      {analysis.explanation}
-                    </p>
-
-                    {analysis.key_factors.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                          Key Factors
-                        </h4>
-                        <ul className="space-y-1">
-                          {analysis.key_factors.map((f, i) => (
-                            <li
-                              key={i}
-                              className="text-sm flex items-start gap-2"
-                            >
-                              <Check className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-                              {f}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {analysis.missing_evidence.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                          Missing Evidence
-                        </h4>
-                        <ul className="space-y-1">
-                          {analysis.missing_evidence.map((e, i) => (
-                            <li
-                              key={i}
-                              className="text-sm flex items-start gap-2 text-amber-400"
-                            >
-                              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                              {evidenceTypeLabels[e] || e}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {!analysis && dispute.win_explanation && (
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {dispute.win_explanation}
-                  </p>
-                )}
+                  {!analysis && dispute.win_explanation && (
+                    <div className="prose prose-sm max-w-none prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground">
+                      <ReactMarkdown>
+                        {dispute.win_explanation}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -404,40 +527,42 @@ export default function DisputeDetailPage({
           <AnimatePresence>
             {letter && (
               <motion.div
-                className="rounded-xl border border-border bg-card p-6 noise"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
+                className="rounded-2xl border border-border overflow-hidden"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.5 }}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-primary" />
-                    <h3 className="font-semibold">Representment Letter</h3>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleCopyLetter}
-                    >
-                      {copied ? (
-                        <CheckCheck className="w-4 h-4 text-win" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </Button>
-                    {dispute.status === "needs_response" && (
-                      <Button size="sm" onClick={handleSubmit}>
-                        <Send className="w-4 h-4 mr-1" />
-                        Submit
+                <div className="h-1 bg-gradient-to-r from-primary to-blue-600" />
+                <div className="p-6 bg-card">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      <h3 className="font-semibold">Representment Letter</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopyLetter}
+                      >
+                        {copied ? (
+                          <CheckCheck className="w-4 h-4 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </Button>
-                    )}
+                      {dispute.status === "needs_response" && (
+                        <Button size="sm" onClick={handleSubmit}>
+                          <Send className="w-4 h-4 mr-1" />
+                          Submit to Stripe
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="prose prose-sm prose-invert max-w-none">
-                  <pre className="whitespace-pre-wrap text-sm text-muted-foreground font-sans leading-relaxed bg-transparent border-0 p-0">
-                    {letter.letter_text}
-                  </pre>
+                  <div className="prose prose-sm max-w-none prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-headings:text-foreground">
+                    <ReactMarkdown>{letter.letter_text}</ReactMarkdown>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -451,9 +576,7 @@ export default function DisputeDetailPage({
               Evidence ({evidence.length})
             </h3>
             <Dialog open={addEvidenceOpen} onOpenChange={setAddEvidenceOpen}>
-              <DialogTrigger
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
+              <DialogTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors">
                 <Plus className="w-4 h-4" />
               </DialogTrigger>
               <DialogContent>
