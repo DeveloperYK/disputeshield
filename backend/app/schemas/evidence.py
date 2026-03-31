@@ -17,6 +17,9 @@ class EvidenceResponse(BaseModel):
     description: str | None
     content: str | None
     file_url: str | None
+    stripe_file_id: str | None = None
+    file_name: str | None = None
+    file_size: int | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

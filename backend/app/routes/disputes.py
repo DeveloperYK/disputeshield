@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import stripe
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -18,6 +19,7 @@ from app.schemas.dispute import (
 )
 from app.schemas.evidence import EvidenceCreate, EvidenceResponse
 from app.services.analysis_engine import AnalysisInput, analyze_dispute
+from app.services.evidence_guide import build_evidence_guide
 from app.services.reason_codes import get_reason_description, get_reason_label
 from app.services.response_generator import ResponseInput, generate_representment_letter
 from app.services.stripe_service import pull_evidence_from_stripe, submit_evidence_to_stripe
@@ -94,6 +96,51 @@ def list_evidence(
     return [EvidenceResponse.model_validate(item) for item in items]
 
 
+@router.get("/{dispute_id}/evidence-guide")
+def get_evidence_guide(
+    dispute_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get a guided evidence checklist for a dispute.
+
+    Returns required and recommended evidence items with human-readable
+    descriptions, tips on where to find them, and collection status.
+    """
+    dispute = _get_user_dispute(db, dispute_id, current_user)
+    evidence_items = (
+        db.query(Evidence)
+        .filter(Evidence.dispute_id == dispute.id)
+        .all()
+    )
+    collected_types = [item.evidence_type.value for item in evidence_items]
+
+    guide = build_evidence_guide(
+        reason_code=dispute.reason_code,
+        stripe_reason=dispute.reason,
+        collected_types=collected_types,
+    )
+
+    return {
+        "dispute_id": str(dispute.id),
+        "reason_code": dispute.reason_code,
+        "reason_label": get_reason_label(dispute.reason_code, dispute.reason),
+        "items": [
+            {
+                "evidence_type": item.evidence_type,
+                "label": item.label,
+                "description": item.description,
+                "where_to_find": item.where_to_find,
+                "why_it_matters": item.why_it_matters,
+                "priority": item.priority,
+                "collected": item.collected,
+                "accepts_file": item.accepts_file,
+            }
+            for item in guide
+        ],
+    }
+
+
 @router.post(
     "/{dispute_id}/evidence",
     response_model=EvidenceResponse,
@@ -115,6 +162,87 @@ def add_evidence(
         title=evidence_data.title,
         description=evidence_data.description,
         content=evidence_data.content,
+    )
+    db.add(evidence)
+    db.commit()
+    db.refresh(evidence)
+    return EvidenceResponse.model_validate(evidence)
+
+
+_MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB (Stripe limit)
+_ALLOWED_CONTENT_TYPES = {
+    "image/png", "image/jpeg", "image/jpg", "image/gif",
+    "application/pdf",
+    "text/plain",
+}
+
+
+@router.post(
+    "/{dispute_id}/evidence/upload",
+    response_model=EvidenceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_evidence_file(
+    dispute_id: uuid.UUID,
+    evidence_type: str = Form(...),
+    title: str = Form(...),
+    description: str = Form(None),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a file as evidence. The file is sent directly to Stripe."""
+    from app.config import settings
+    from app.models.evidence import EvidenceSource, EvidenceType
+
+    dispute = _get_user_dispute(db, dispute_id, current_user)
+
+    # Validate evidence type
+    try:
+        ev_type = EvidenceType(evidence_type)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid evidence type: {evidence_type}",
+        )
+
+    # Validate content type
+    if file.content_type not in _ALLOWED_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type not allowed: {file.content_type}. Accepted: PNG, JPG, GIF, PDF, TXT.",
+        )
+
+    # Read file and validate size
+    file_bytes = await file.read()
+    if len(file_bytes) > _MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large ({len(file_bytes) // (1024*1024)}MB). Maximum: 20MB.",
+        )
+
+    # Upload to Stripe
+    try:
+        stripe_file = stripe.File.create(
+            file=(file.filename, file_bytes, file.content_type),
+            purpose="dispute_evidence",
+            api_key=settings.stripe_api_key,
+        )
+    except stripe.StripeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to upload file to Stripe: {str(e)}",
+        )
+
+    evidence = Evidence(
+        dispute_id=dispute.id,
+        evidence_type=ev_type,
+        source=EvidenceSource.MERCHANT_UPLOAD,
+        title=title,
+        description=description,
+        stripe_file_id=stripe_file.id,
+        file_name=file.filename,
+        file_size=len(file_bytes),
     )
     db.add(evidence)
     db.commit()

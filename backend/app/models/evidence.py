@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -52,6 +52,9 @@ class Evidence(Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     content: Mapped[Optional[str]] = mapped_column(Text)
     file_url: Mapped[Optional[str]] = mapped_column(Text)
+    stripe_file_id: Mapped[Optional[str]] = mapped_column(String(255))
+    file_name: Mapped[Optional[str]] = mapped_column(String(255))
+    file_size: Mapped[Optional[int]] = mapped_column()
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

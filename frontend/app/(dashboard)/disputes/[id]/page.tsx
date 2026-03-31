@@ -26,6 +26,9 @@ import {
   ShieldAlert,
   TrendingUp,
   TrendingDown,
+  Upload,
+  Image,
+  Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +42,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WinGauge } from "@/components/disputes/win-gauge";
+import { EvidenceUpload } from "@/components/disputes/evidence-upload";
+import { EvidenceChecklist } from "@/components/disputes/evidence-checklist";
 import {
   getDispute,
   listEvidence,
@@ -149,6 +154,9 @@ export default function DisputeDetailPage({
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [addEvidenceOpen, setAddEvidenceOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadPreselect, setUploadPreselect] = useState<string | undefined>(undefined);
+  const [evidenceRefresh, setEvidenceRefresh] = useState(0);
   const [newEvidence, setNewEvidence] = useState({
     evidence_type: "customer_communication",
     title: "",
@@ -224,6 +232,7 @@ export default function DisputeDetailPage({
     try {
       const ev = await addEvidence(id, newEvidence);
       setEvidence((prev) => [...prev, ev]);
+      setEvidenceRefresh((n) => n + 1);
       setAddEvidenceOpen(false);
       setNewEvidence({
         evidence_type: "customer_communication",
@@ -325,12 +334,26 @@ export default function DisputeDetailPage({
                   {dispute.customer_email}
                 </span>
               )}
-              {dispute.evidence_due_by && (
-                <span className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" />
-                  Due {formatDate(dispute.evidence_due_by)}
-                </span>
-              )}
+              {dispute.evidence_due_by && (() => {
+                const hours = (new Date(dispute.evidence_due_by).getTime() - Date.now()) / (1000 * 60 * 60);
+                const urgent = hours > 0 && hours <= 48;
+                const expired = hours <= 0;
+                return (
+                  <span className={`flex items-center gap-1.5 ${
+                    expired ? "text-red-600 font-semibold" : urgent ? "text-red-600 font-semibold" : ""
+                  }`}>
+                    {urgent ? (
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                      </span>
+                    ) : (
+                      <Clock className="w-3.5 h-3.5" />
+                    )}
+                    {expired ? "Deadline passed" : `Due ${formatDate(dispute.evidence_due_by)}`}
+                  </span>
+                );
+              })()}
             </div>
 
             {dispute.reason_description && (
@@ -569,16 +592,37 @@ export default function DisputeDetailPage({
           </AnimatePresence>
         </div>
 
-        {/* Right column: Evidence */}
+        {/* Right column: Evidence Guide + Evidence */}
         <div className="space-y-4">
+          {/* Guided evidence checklist */}
+          {dispute.status === "needs_response" && (
+            <EvidenceChecklist
+              disputeId={id}
+              refreshTrigger={evidenceRefresh}
+              onUploadClick={(evidenceType) => {
+                setUploadPreselect(evidenceType);
+                setUploadOpen(true);
+              }}
+            />
+          )}
+
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
               Evidence ({evidence.length})
             </h3>
-            <Dialog open={addEvidenceOpen} onOpenChange={setAddEvidenceOpen}>
-              <DialogTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors">
-                <Plus className="w-4 h-4" />
-              </DialogTrigger>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setUploadOpen(true)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
+                title="Upload file"
+              >
+                <Upload className="w-4 h-4" />
+              </button>
+              <Dialog open={addEvidenceOpen} onOpenChange={setAddEvidenceOpen}>
+                <DialogTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors" title="Add text evidence">
+                  <Plus className="w-4 h-4" />
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add Evidence</DialogTitle>
@@ -655,7 +699,23 @@ export default function DisputeDetailPage({
                 </div>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
+
+          {/* File upload dialog */}
+          <EvidenceUpload
+            disputeId={id}
+            open={uploadOpen}
+            onOpenChange={(open) => {
+              setUploadOpen(open);
+              if (!open) setUploadPreselect(undefined);
+            }}
+            onUploaded={(ev) => {
+              setEvidence((prev) => [...prev, ev]);
+              setEvidenceRefresh((n) => n + 1);
+            }}
+            defaultEvidenceType={uploadPreselect}
+          />
 
           {evidence.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-6 text-center">
@@ -675,15 +735,36 @@ export default function DisputeDetailPage({
                   transition={{ delay: i * 0.05 }}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium">{ev.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {evidenceTypeLabels[ev.evidence_type] ||
-                          ev.evidence_type}
-                      </p>
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      {ev.stripe_file_id ? (
+                        <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                          {ev.file_name?.match(/\.(png|jpg|jpeg|gif)$/i) ? (
+                            <Image className="w-3.5 h-3.5 text-primary" />
+                          ) : (
+                            <Paperclip className="w-3.5 h-3.5 text-primary" />
+                          )}
+                        </div>
+                      ) : null}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{ev.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {evidenceTypeLabels[ev.evidence_type] ||
+                            ev.evidence_type}
+                        </p>
+                        {ev.file_name && (
+                          <p className="text-xs text-muted-foreground/70 truncate mt-0.5">
+                            {ev.file_name}
+                            {ev.file_size ? ` (${(ev.file_size / 1024).toFixed(0)} KB)` : ""}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <Badge variant="outline" className="text-xs shrink-0">
-                      {ev.source === "stripe_auto" ? "Auto" : "Manual"}
+                      {ev.source === "stripe_auto"
+                        ? "Auto"
+                        : ev.stripe_file_id
+                          ? "File"
+                          : "Manual"}
                     </Badge>
                   </div>
                 </motion.div>

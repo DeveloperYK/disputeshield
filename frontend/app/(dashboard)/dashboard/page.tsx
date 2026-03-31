@@ -69,6 +69,12 @@ export default function DashboardPage() {
   const needsResponse = disputes.filter(
     (d) => d.status === "needs_response",
   );
+  const inProgress = disputes.filter(
+    (d) => d.status === "under_review" || d.status === "response_submitted",
+  );
+  const won = disputes.filter((d) => d.status === "won");
+  const lost = disputes.filter((d) => d.status === "lost");
+  const skipped = disputes.filter((d) => d.status === "skipped");
   const hasStripe = !!user?.stripe_account_id;
 
   return (
@@ -141,9 +147,9 @@ export default function DashboardPage() {
 
       {/* Disputes list */}
       {disputes.length > 0 ? (
-        <div>
+        <div className="space-y-8">
           {needsResponse.length > 0 && (
-            <div className="mb-6">
+            <div>
               <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
                 Needs Response
               </h2>
@@ -155,22 +161,55 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {disputes.filter((d) => d.status !== "needs_response").length >
-            0 && (
+          {inProgress.length > 0 && (
             <div>
               <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                All Disputes
+                In Progress
               </h2>
               <div className="space-y-3">
-                {disputes
-                  .filter((d) => d.status !== "needs_response")
-                  .map((d, i) => (
-                    <DisputeCard
-                      key={d.id}
-                      dispute={d}
-                      index={i}
-                    />
-                  ))}
+                {inProgress.map((d, i) => (
+                  <DisputeCard key={d.id} dispute={d} index={i} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {won.length > 0 && (
+            <div>
+              <h2 className="text-sm font-medium text-emerald-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Trophy className="w-4 h-4" />
+                Won
+              </h2>
+              <div className="space-y-3">
+                {won.map((d, i) => (
+                  <DisputeCard key={d.id} dispute={d} index={i} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {lost.length > 0 && (
+            <div>
+              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                Lost
+              </h2>
+              <div className="space-y-3">
+                {lost.map((d, i) => (
+                  <DisputeCard key={d.id} dispute={d} index={i} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {skipped.length > 0 && (
+            <div>
+              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                Skipped
+              </h2>
+              <div className="space-y-3">
+                {skipped.map((d, i) => (
+                  <DisputeCard key={d.id} dispute={d} index={i} />
+                ))}
               </div>
             </div>
           )}

@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # Anthropic
     anthropic_api_key: str = ""
 
+    # Email (Resend)
+    resend_api_key: str = ""
+    email_from: str = "DisputeShield <alerts@disputeshield.com>"
+
     # Frontend
     frontend_url: str = "http://localhost:3000"
 

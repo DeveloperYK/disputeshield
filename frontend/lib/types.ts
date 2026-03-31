@@ -64,7 +64,28 @@ export interface Evidence {
   description: string | null;
   content: string | null;
   file_url: string | null;
+  stripe_file_id: string | null;
+  file_name: string | null;
+  file_size: number | null;
   created_at: string;
+}
+
+export interface EvidenceGuideItem {
+  evidence_type: string;
+  label: string;
+  description: string;
+  where_to_find: string;
+  why_it_matters: string;
+  priority: "required" | "recommended";
+  collected: boolean;
+  accepts_file: boolean;
+}
+
+export interface EvidenceGuide {
+  dispute_id: string;
+  reason_code: string | null;
+  reason_label: string;
+  items: EvidenceGuideItem[];
 }
 
 export interface Analytics {

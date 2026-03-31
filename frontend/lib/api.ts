@@ -4,6 +4,7 @@ import type {
   DisputeAnalysis,
   DisputeListResponse,
   Evidence,
+  EvidenceGuide,
   RepresentmentLetter,
   Subscription,
   User,
@@ -136,6 +137,47 @@ export async function addEvidence(
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+
+export async function uploadEvidence(
+  disputeId: string,
+  data: {
+    file: File;
+    evidence_type: string;
+    title: string;
+    description?: string;
+  },
+): Promise<Evidence> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("file", data.file);
+  formData.append("evidence_type", data.evidence_type);
+  formData.append("title", data.title);
+  if (data.description) {
+    formData.append("description", data.description);
+  }
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_BASE}/disputes/${disputeId}/evidence/upload`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Upload failed" }));
+    throw new ApiError(res.status, body.detail || "Upload failed");
+  }
+
+  return res.json();
+}
+
+export async function getEvidenceGuide(disputeId: string) {
+  return request<EvidenceGuide>(`/disputes/${disputeId}/evidence-guide`);
 }
 
 export async function pullEvidence(disputeId: string) {

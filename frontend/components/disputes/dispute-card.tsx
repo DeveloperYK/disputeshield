@@ -28,10 +28,17 @@ function getTimeLeft(dueDate: string | null): string | null {
   const due = new Date(dueDate);
   const diff = due.getTime() - now.getTime();
   if (diff <= 0) return "Expired";
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return "Due today";
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 24) return hours <= 1 ? "Less than 1 hour" : `${hours} hours left`;
+  const days = Math.floor(hours / 24);
   if (days === 1) return "1 day left";
   return `${days} days left`;
+}
+
+function isUrgent(dueDate: string | null): boolean {
+  if (!dueDate) return false;
+  const hours = (new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60);
+  return hours > 0 && hours <= 48;
 }
 
 function getTimeLeftColor(dueDate: string | null): string {
@@ -70,8 +77,8 @@ const statusConfig: Record<
     icon: CheckCircle2,
     variant: "outline",
   },
-  won: { label: "Won", icon: CheckCircle2, variant: "default" },
-  lost: { label: "Lost", icon: XCircle, variant: "destructive" },
+  won: { label: "Won", icon: CheckCircle2, variant: "default" as const },
+  lost: { label: "Lost", icon: XCircle, variant: "destructive" as const },
   skipped: { label: "Skipped", icon: SkipForward, variant: "secondary" },
 };
 
@@ -92,7 +99,13 @@ export function DisputeCard({ dispute, index }: DisputeCardProps) {
       transition={{ duration: 0.3, delay: index * 0.05 }}
     >
       <Link href={`/disputes/${dispute.id}`}>
-        <div className="group rounded-xl border border-border bg-card p-5 hover:border-primary/30 hover:shadow-elevated transition-all duration-200 cursor-pointer">
+        <div className={`group rounded-xl border p-5 hover:shadow-elevated transition-all duration-200 cursor-pointer ${
+          dispute.status === "won"
+            ? "border-emerald-200 bg-emerald-50/50 hover:border-emerald-300"
+            : dispute.status === "lost"
+              ? "border-red-200 bg-red-50/30 hover:border-red-300"
+              : "border-border bg-card hover:border-primary/30"
+        }`}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
@@ -118,12 +131,28 @@ export function DisputeCard({ dispute, index }: DisputeCardProps) {
                 )}
               </div>
 
-              {timeLeft && dispute.status === "needs_response" && (
+              {timeLeft && (dispute.status === "needs_response" || dispute.status === "under_review") && (
                 <div
-                  className={`flex items-center gap-1 text-sm mt-2 ${getTimeLeftColor(dispute.evidence_due_by)}`}
+                  className={`flex items-center gap-1.5 text-sm mt-2 ${getTimeLeftColor(dispute.evidence_due_by)} ${
+                    isUrgent(dispute.evidence_due_by) ? "font-semibold" : ""
+                  }`}
                 >
-                  <Clock className="w-3.5 h-3.5" />
+                  {isUrgent(dispute.evidence_due_by) ? (
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                    </span>
+                  ) : (
+                    <Clock className="w-3.5 h-3.5" />
+                  )}
                   {timeLeft}
+                </div>
+              )}
+
+              {dispute.status === "won" && (
+                <div className="flex items-center gap-1 text-sm mt-2 text-emerald-600 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {formatCurrency(dispute.amount, dispute.currency)} recovered
                 </div>
               )}
             </div>

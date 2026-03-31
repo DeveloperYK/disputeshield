@@ -31,6 +31,9 @@ class FakeEvidence:
     description: str = "Test"
     content: Optional[str] = "test content"
     file_url: Optional[str] = None
+    stripe_file_id: Optional[str] = None
+    file_name: Optional[str] = None
+    file_size: Optional[int] = None
 
 
 class TestEvidenceTypeMapping:
@@ -119,3 +122,84 @@ class TestSubmitEvidenceToStripe:
         )
 
         assert mock_modify.call_args.kwargs["api_key"] == "sk_test_merchant_key"
+
+    @patch("app.services.stripe_service.stripe.Dispute.modify")
+    def test_uses_stripe_file_id_for_receipt(self, mock_modify):
+        mock_modify.return_value = {"id": "dp_test_123"}
+        ev = FakeEvidence(
+            evidence_type=EvidenceType.RECEIPT,
+            stripe_file_id="file_abc123",
+            content=None,
+        )
+
+        submit_evidence_to_stripe(
+            dispute=FakeDispute(),
+            evidence_items=[ev],
+            generated_response=None,
+            access_token="sk_test_token",
+        )
+
+        evidence = mock_modify.call_args.kwargs["evidence"]
+        assert evidence["receipt"] == "file_abc123"
+
+    @patch("app.services.stripe_service.stripe.Dispute.modify")
+    def test_uses_stripe_file_id_for_screenshot(self, mock_modify):
+        mock_modify.return_value = {"id": "dp_test_123"}
+        ev = FakeEvidence(
+            evidence_type=EvidenceType.SCREENSHOT,
+            stripe_file_id="file_screenshot_456",
+            content=None,
+        )
+
+        submit_evidence_to_stripe(
+            dispute=FakeDispute(),
+            evidence_items=[ev],
+            generated_response=None,
+            access_token="sk_test_token",
+        )
+
+        evidence = mock_modify.call_args.kwargs["evidence"]
+        assert evidence["uncategorized_file"] == "file_screenshot_456"
+
+    @patch("app.services.stripe_service.stripe.Dispute.modify")
+    def test_falls_back_to_content_for_text_fields(self, mock_modify):
+        mock_modify.return_value = {"id": "dp_test_123"}
+        ev = FakeEvidence(
+            evidence_type=EvidenceType.SHIPPING_TRACKING,
+            stripe_file_id="file_xyz",
+            content="TRACK123456",
+        )
+
+        submit_evidence_to_stripe(
+            dispute=FakeDispute(),
+            evidence_items=[ev],
+            generated_response=None,
+            access_token="sk_test_token",
+        )
+
+        evidence = mock_modify.call_args.kwargs["evidence"]
+        # shipping_tracking maps to shipping_tracking_number which is a text field, not a file field
+        assert evidence["shipping_tracking_number"] == "TRACK123456"
+
+    @patch("app.services.stripe_service.stripe.Dispute.modify")
+    def test_concatenates_multiple_text_items_same_field(self, mock_modify):
+        mock_modify.return_value = {"id": "dp_test_123"}
+        ev1 = FakeEvidence(
+            evidence_type=EvidenceType.CUSTOM_DOCUMENT,
+            content="First doc content",
+        )
+        ev2 = FakeEvidence(
+            evidence_type=EvidenceType.CUSTOM_DOCUMENT,
+            content="Second doc content",
+        )
+
+        submit_evidence_to_stripe(
+            dispute=FakeDispute(),
+            evidence_items=[ev1, ev2],
+            generated_response=None,
+            access_token="sk_test_token",
+        )
+
+        evidence = mock_modify.call_args.kwargs["evidence"]
+        assert "First doc content" in evidence["uncategorized_text"]
+        assert "Second doc content" in evidence["uncategorized_text"]

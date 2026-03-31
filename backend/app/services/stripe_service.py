@@ -175,19 +175,20 @@ def submit_evidence_to_stripe(
     if generated_response:
         evidence_payload["uncategorized_text"] = generated_response
 
+    # Stripe fields that accept file IDs (not text)
+    _FILE_FIELDS = {"receipt", "shipping_documentation", "customer_signature", "uncategorized_file"}
+
     # Map evidence items to Stripe fields
     for item in evidence_items:
         stripe_field = _EVIDENCE_TYPE_TO_STRIPE_FIELD.get(
             item.evidence_type.value, "uncategorized_text"
         )
 
-        # Stripe evidence fields are single values, not arrays.
-        # For text fields, concatenate if multiple items map to the same field.
-        if item.file_url and stripe_field.endswith("_file"):
-            evidence_payload[stripe_field] = item.file_url
-        elif item.file_url and stripe_field in ("receipt", "shipping_documentation", "customer_signature"):
-            evidence_payload[stripe_field] = item.file_url
+        # Use stripe_file_id for file-type fields
+        if item.stripe_file_id and stripe_field in _FILE_FIELDS:
+            evidence_payload[stripe_field] = item.stripe_file_id
         elif item.content:
+            # Text fields: concatenate if multiple items map to the same field
             existing = evidence_payload.get(stripe_field, "")
             separator = "\n\n---\n\n" if existing else ""
             evidence_payload[stripe_field] = existing + separator + item.content
