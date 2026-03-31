@@ -12,6 +12,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { InteractiveGrid } from "@/components/shared/interactive-grid";
 import {
   Tooltip,
   TooltipContent,
@@ -128,6 +129,9 @@ export default function DashboardLayout({
 
         {/* Main content */}
         <main className="flex-1 ml-16 relative overflow-hidden">
+          <div className="fixed inset-0 ml-16 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+            <InteractiveGrid />
+          </div>
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}
