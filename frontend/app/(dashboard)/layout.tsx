@@ -18,6 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { FlowingLines } from "@/components/shared/flowing-lines";
 
 const navItems = [
   { href: "/dashboard", icon: Inbox, label: "Disputes" },
@@ -129,51 +130,7 @@ export default function DashboardLayout({
         <main className="flex-1 ml-16 relative overflow-hidden">
           {/* Animated flowing blue lines background */}
           <div className="fixed inset-0 ml-16 pointer-events-none overflow-hidden">
-            <svg
-              className="absolute inset-0 w-full h-full opacity-[0.04]"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                <linearGradient id="flow-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="var(--primary)" stopOpacity="0" />
-                  <stop offset="50%" stopColor="var(--primary)" stopOpacity="1" />
-                  <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
-                </linearGradient>
-                <linearGradient id="flow-grad-2" x1="100%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0" />
-                  <stop offset="50%" stopColor="#3b82f6" stopOpacity="1" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M-100,200 C200,100 400,300 600,180 S1000,250 1200,150 S1600,200 1900,100"
-                fill="none"
-                stroke="url(#flow-grad-1)"
-                strokeWidth="1.5"
-                className="animate-flow-1"
-              />
-              <path
-                d="M-100,400 C150,350 350,450 550,380 S850,420 1100,350 S1400,400 1900,300"
-                fill="none"
-                stroke="url(#flow-grad-2)"
-                strokeWidth="1"
-                className="animate-flow-2"
-              />
-              <path
-                d="M-100,600 C250,550 450,650 700,580 S950,620 1200,560 S1500,600 1900,500"
-                fill="none"
-                stroke="url(#flow-grad-1)"
-                strokeWidth="1"
-                className="animate-flow-3"
-              />
-              <path
-                d="M-100,800 C300,750 500,850 750,780 S1050,820 1300,760 S1600,800 1900,700"
-                fill="none"
-                stroke="url(#flow-grad-2)"
-                strokeWidth="0.8"
-                className="animate-flow-1"
-              />
-            </svg>
+            <FlowingLines />
           </div>
 
           <AnimatePresence mode="wait">
