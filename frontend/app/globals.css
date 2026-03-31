@@ -161,3 +161,30 @@
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.7; }
 }
+
+/* Flowing blue lines animation */
+@keyframes flow-drift-1 {
+  0% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(60px) translateY(-15px); }
+  100% { transform: translateX(0) translateY(0); }
+}
+@keyframes flow-drift-2 {
+  0% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(-40px) translateY(10px); }
+  100% { transform: translateX(0) translateY(0); }
+}
+@keyframes flow-drift-3 {
+  0% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(30px) translateY(12px); }
+  100% { transform: translateX(0) translateY(0); }
+}
+
+.animate-flow-1 {
+  animation: flow-drift-1 12s ease-in-out infinite;
+}
+.animate-flow-2 {
+  animation: flow-drift-2 16s ease-in-out infinite;
+}
+.animate-flow-3 {
+  animation: flow-drift-3 20s ease-in-out infinite;
+}

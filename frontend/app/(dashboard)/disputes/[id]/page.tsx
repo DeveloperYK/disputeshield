@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useRef, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -29,6 +29,11 @@ import {
   Upload,
   Image,
   Paperclip,
+  ArrowDown,
+  Target,
+  XCircle,
+  Lightbulb,
+  Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -138,6 +143,309 @@ function getRecommendationTheme(rec: Recommendation) {
   }
 }
 
+/* ── Parse AI explanation into structured sections ── */
+interface AnalysisSections {
+  verdict: string;
+  strengthens: string[];
+  weakens: string[];
+  details: string;
+  action: string;
+}
+
+function parseAnalysis(explanation: string): AnalysisSections {
+  const lines = explanation.split("\n");
+  const strengthens: string[] = [];
+  const weakens: string[] = [];
+  let verdict = "";
+  let action = "";
+  let details = "";
+  let currentSection = "general";
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    if (/why\s+\d+%/i.test(trimmed) || /win\s+probability/i.test(trimmed)) {
+      // Extract the verdict line (strip markdown bold/heading markers)
+      verdict = trimmed.replace(/^[#*\s]+/, "").replace(/\*\*/g, "");
+      currentSection = "verdict";
+      continue;
+    }
+    if (/strengthen/i.test(trimmed) || /evidence\s+assessment/i.test(trimmed)) {
+      currentSection = "evidence";
+      continue;
+    }
+    if (/recommended\s+action/i.test(trimmed)) {
+      currentSection = "action";
+      continue;
+    }
+    if (/instead.*focus/i.test(trimmed) || /prevention/i.test(trimmed)) {
+      currentSection = "prevention";
+      continue;
+    }
+    if (/the\s+problem/i.test(trimmed)) {
+      currentSection = "problem";
+      continue;
+    }
+
+    if (currentSection === "evidence") {
+      const cleaned = trimmed.replace(/^[-*]\s*/, "").replace(/\*\*/g, "");
+      if (/^✅|strengthen/i.test(cleaned)) {
+        strengthens.push(cleaned.replace(/^✅\s*/, "").replace(/^strengthens?\s*case:\s*/i, ""));
+      } else if (/^❌|weaken/i.test(cleaned)) {
+        weakens.push(cleaned.replace(/^❌\s*/, "").replace(/^weakens?\s*case:\s*/i, ""));
+      }
+      continue;
+    }
+    if (currentSection === "action" || currentSection === "prevention") {
+      const cleaned = trimmed.replace(/^[-*]\s*/, "").replace(/\*\*/g, "");
+      if (cleaned) action += (action ? "\n" : "") + cleaned;
+      continue;
+    }
+    if (currentSection === "problem") {
+      const cleaned = trimmed.replace(/^[-*]\s*/, "").replace(/\*\*/g, "");
+      details += (details ? "\n" : "") + cleaned;
+      continue;
+    }
+    if (currentSection === "verdict" || currentSection === "general") {
+      const cleaned = trimmed.replace(/^[-*]\s*/, "").replace(/\*\*/g, "");
+      if (!verdict && cleaned) verdict = cleaned;
+      else details += (details ? "\n" : "") + cleaned;
+    }
+  }
+
+  return { verdict, strengthens, weakens, details, action };
+}
+
+/* ── Structured Analysis Display ── */
+function AnalysisCards({
+  analysis,
+  theme,
+  recommendation,
+}: {
+  analysis: DisputeAnalysis;
+  theme: ReturnType<typeof getRecommendationTheme> | null;
+  recommendation: Recommendation | null;
+}) {
+  const sections = parseAnalysis(analysis.explanation);
+
+  return (
+    <div className="space-y-4">
+      {/* Verdict card */}
+      {sections.verdict && (
+        <motion.div
+          className={`rounded-xl border p-5 ${
+            theme ? `${theme.border} ${theme.bg}` : "border-border bg-card"
+          }`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                theme ? theme.badgeBg : "bg-primary/10"
+              }`}
+            >
+              <Scale className={`w-5 h-5 ${theme?.iconColor ?? "text-primary"}`} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                Verdict
+              </p>
+              <p className="text-sm leading-relaxed text-foreground">
+                {sections.verdict}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Evidence strength — two-column: helps / hurts */}
+      {(sections.strengthens.length > 0 || sections.weakens.length > 0) && (
+        <motion.div
+          className="grid grid-cols-2 gap-3"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          {/* Helps */}
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 mb-3 flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5" />
+              Helps your case
+            </p>
+            {sections.strengthens.length > 0 ? (
+              <ul className="space-y-2">
+                {sections.strengthens.map((s, i) => (
+                  <motion.li
+                    key={i}
+                    className="text-sm text-emerald-800 flex items-start gap-2"
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + i * 0.08 }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
+                    {s}
+                  </motion.li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-emerald-600/60 italic">No supporting evidence found</p>
+            )}
+          </div>
+
+          {/* Hurts */}
+          <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-red-700 mb-3 flex items-center gap-1.5">
+              <XCircle className="w-3.5 h-3.5" />
+              Hurts your case
+            </p>
+            {sections.weakens.length > 0 ? (
+              <ul className="space-y-2">
+                {sections.weakens.map((w, i) => (
+                  <motion.li
+                    key={i}
+                    className="text-sm text-red-800 flex items-start gap-2"
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + i * 0.08 }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 mt-1.5" />
+                    {w}
+                  </motion.li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-red-600/60 italic">Nothing working against you</p>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Details / Problem section */}
+      {sections.details && (
+        <motion.div
+          className="rounded-xl border border-border bg-muted/30 p-5"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Target className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Key Details
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                {sections.details}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Recommended Action */}
+      {sections.action && (
+        <motion.div
+          className={`rounded-xl border p-5 ${
+            recommendation === "fight"
+              ? "border-emerald-200 bg-emerald-50/30"
+              : recommendation === "skip"
+                ? "border-red-200 bg-red-50/30"
+                : "border-amber-200 bg-amber-50/30"
+          }`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                recommendation === "fight"
+                  ? "bg-emerald-100"
+                  : recommendation === "skip"
+                    ? "bg-red-100"
+                    : "bg-amber-100"
+              }`}
+            >
+              <Lightbulb
+                className={`w-4 h-4 ${
+                  recommendation === "fight"
+                    ? "text-emerald-600"
+                    : recommendation === "skip"
+                      ? "text-red-600"
+                      : "text-amber-600"
+                }`}
+              />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Recommended Action
+              </p>
+              <p className="text-sm leading-relaxed whitespace-pre-line">
+                {sections.action}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Key factors + missing evidence pills */}
+      {(analysis.key_factors.length > 0 || analysis.missing_evidence.length > 0) && (
+        <motion.div
+          className="flex flex-wrap gap-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          {analysis.key_factors.map((f, i) => (
+            <span
+              key={`kf-${i}`}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
+            >
+              <Check className="w-3 h-3" />
+              {f}
+            </span>
+          ))}
+          {analysis.missing_evidence.map((e, i) => (
+            <span
+              key={`me-${i}`}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-medium"
+            >
+              <AlertTriangle className="w-3 h-3" />
+              {evidenceTypeLabels[e] || e}
+            </span>
+          ))}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+/* ── Letter ready notification ── */
+function LetterReadyBanner({ onClick }: { onClick: () => void }) {
+  return (
+    <motion.div
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+      initial={{ opacity: 0, y: 40, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 40, scale: 0.95 }}
+    >
+      <button
+        onClick={onClick}
+        className="flex items-center gap-3 px-5 py-3 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/25 hover:shadow-primary/35 transition-shadow"
+      >
+        <Sparkles className="w-4 h-4" />
+        <span className="font-medium text-sm">Response letter ready</span>
+        <ArrowDown className="w-4 h-4 animate-bounce" />
+      </button>
+    </motion.div>
+  );
+}
+
 export default function DisputeDetailPage({
   params,
 }: {
@@ -145,6 +453,7 @@ export default function DisputeDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const letterRef = useRef<HTMLDivElement>(null);
   const [dispute, setDispute] = useState<Dispute | null>(null);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [analysis, setAnalysis] = useState<DisputeAnalysis | null>(null);
@@ -157,6 +466,7 @@ export default function DisputeDetailPage({
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadPreselect, setUploadPreselect] = useState<string | undefined>(undefined);
   const [evidenceRefresh, setEvidenceRefresh] = useState(0);
+  const [showLetterBanner, setShowLetterBanner] = useState(false);
   const [newEvidence, setNewEvidence] = useState({
     evidence_type: "customer_communication",
     title: "",
@@ -201,6 +511,7 @@ export default function DisputeDetailPage({
     try {
       const result = await generateResponse(id);
       setLetter(result);
+      setShowLetterBanner(true);
       const updated = await getDispute(id);
       setDispute(updated);
     } catch {
@@ -208,6 +519,11 @@ export default function DisputeDetailPage({
     } finally {
       setGenerating(false);
     }
+  }
+
+  function scrollToLetter() {
+    setShowLetterBanner(false);
+    letterRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function handleSkip() {
@@ -253,7 +569,6 @@ export default function DisputeDetailPage({
     }
   }
 
-  // Derive recommendation from analysis or stored win_probability
   function deriveRecommendation(d: Dispute): Recommendation | null {
     if (analysis?.recommendation) return analysis.recommendation;
     const wp = d.win_probability;
@@ -276,6 +591,11 @@ export default function DisputeDetailPage({
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
+      {/* Letter-ready floating banner */}
+      <AnimatePresence>
+        {showLetterBanner && <LetterReadyBanner onClick={scrollToLetter} />}
+      </AnimatePresence>
+
       {/* Back */}
       <Link
         href="/dashboard"
@@ -363,7 +683,6 @@ export default function DisputeDetailPage({
             )}
           </div>
 
-          {/* Win probability gauge — properly spaced */}
           {(dispute.win_probability !== null || analysis) && (
             <div className="shrink-0 flex flex-col items-center gap-1">
               <WinGauge
@@ -376,7 +695,6 @@ export default function DisputeDetailPage({
           )}
         </div>
 
-        {/* Recommendation banner — appears after analysis */}
         <AnimatePresence>
           {theme && recommendation && (
             <motion.div
@@ -444,103 +762,50 @@ export default function DisputeDetailPage({
       <div className="grid md:grid-cols-3 gap-6">
         {/* Left column: Analysis + Letter */}
         <div className="md:col-span-2 space-y-6">
-          {/* AI Analysis */}
+          {/* AI Analysis — structured cards */}
           <AnimatePresence>
-            {(analysis || dispute.win_explanation) && (
+            {analysis && (
               <motion.div
-                className={`rounded-2xl border overflow-hidden ${
-                  theme ? `${theme.border}` : "border-border"
-                }`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.5 }}
               >
-                {/* Gradient top strip */}
-                <div
-                  className={`h-1 ${
-                    recommendation === "fight"
-                      ? "bg-gradient-to-r from-emerald-400 to-emerald-600"
-                      : recommendation === "borderline"
-                        ? "bg-gradient-to-r from-amber-400 to-amber-600"
-                        : "bg-gradient-to-r from-red-400 to-red-600"
-                  }`}
+                <div className="flex items-center gap-2 mb-4">
+                  <Sparkles
+                    className={`w-4 h-4 ${theme?.iconColor ?? "text-primary"}`}
+                  />
+                  <h3 className="font-semibold">AI Analysis</h3>
+                </div>
+                <AnalysisCards
+                  analysis={analysis}
+                  theme={theme}
+                  recommendation={recommendation}
                 />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
+          {/* Fallback: stored explanation (no fresh analysis) */}
+          <AnimatePresence>
+            {!analysis && dispute.win_explanation && (
+              <motion.div
+                className="rounded-2xl border border-border overflow-hidden"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <div className="h-1 bg-gradient-to-r from-primary to-blue-600" />
                 <div className="p-6 bg-card">
-                  <div className="flex items-center gap-2 mb-5">
-                    <Sparkles
-                      className={`w-4 h-4 ${theme?.iconColor ?? "text-primary"}`}
-                    />
+                  <div className="flex items-center gap-2 mb-4">
+                    <Sparkles className="w-4 h-4 text-primary" />
                     <h3 className="font-semibold">AI Analysis</h3>
                   </div>
-
-                  {analysis && (
-                    <div className="space-y-5">
-                      {/* Rendered markdown explanation */}
-                      <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-headings:font-semibold prose-headings:text-base prose-p:text-muted-foreground prose-p:leading-relaxed prose-li:text-muted-foreground prose-strong:text-foreground prose-ul:my-2 prose-li:my-0.5">
-                        <ReactMarkdown>{analysis.explanation}</ReactMarkdown>
-                      </div>
-
-                      {/* Key Factors */}
-                      {analysis.key_factors.length > 0 && (
-                        <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
-                          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                            Key Factors
-                          </h4>
-                          <ul className="space-y-2">
-                            {analysis.key_factors.map((f, i) => (
-                              <motion.li
-                                key={i}
-                                className="text-sm flex items-start gap-2"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.1 * i }}
-                              >
-                                <Check
-                                  className={`w-4 h-4 mt-0.5 shrink-0 ${theme?.iconColor ?? "text-primary"}`}
-                                />
-                                <span>{f}</span>
-                              </motion.li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Missing Evidence */}
-                      {analysis.missing_evidence.length > 0 && (
-                        <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
-                          <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-3">
-                            Missing Evidence
-                          </h4>
-                          <ul className="space-y-2">
-                            {analysis.missing_evidence.map((e, i) => (
-                              <motion.li
-                                key={i}
-                                className="text-sm flex items-start gap-2 text-amber-800"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.1 * i }}
-                              >
-                                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
-                                <span>
-                                  {evidenceTypeLabels[e] || e}
-                                </span>
-                              </motion.li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {!analysis && dispute.win_explanation && (
-                    <div className="prose prose-sm max-w-none prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground">
-                      <ReactMarkdown>
-                        {dispute.win_explanation}
-                      </ReactMarkdown>
-                    </div>
-                  )}
+                  <div className="prose prose-sm max-w-none prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground">
+                    <ReactMarkdown>
+                      {dispute.win_explanation}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -550,18 +815,24 @@ export default function DisputeDetailPage({
           <AnimatePresence>
             {letter && (
               <motion.div
-                className="rounded-2xl border border-border overflow-hidden"
+                ref={letterRef}
+                className="rounded-2xl border border-primary/30 overflow-hidden shadow-lg shadow-primary/5"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.5 }}
               >
-                <div className="h-1 bg-gradient-to-r from-primary to-blue-600" />
+                <div className="h-1.5 bg-gradient-to-r from-primary via-blue-500 to-violet-500" />
                 <div className="p-6 bg-card">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-primary" />
-                      <h3 className="font-semibold">Representment Letter</h3>
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <FileText className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Representment Letter</h3>
+                        <p className="text-xs text-muted-foreground">Ready to submit</p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -570,9 +841,15 @@ export default function DisputeDetailPage({
                         onClick={handleCopyLetter}
                       >
                         {copied ? (
-                          <CheckCheck className="w-4 h-4 text-emerald-600" />
+                          <>
+                            <CheckCheck className="w-4 h-4 text-emerald-600 mr-1" />
+                            <span className="text-xs text-emerald-600">Copied</span>
+                          </>
                         ) : (
-                          <Copy className="w-4 h-4" />
+                          <>
+                            <Copy className="w-4 h-4 mr-1" />
+                            <span className="text-xs">Copy</span>
+                          </>
                         )}
                       </Button>
                       {dispute.status === "needs_response" && (
@@ -583,8 +860,10 @@ export default function DisputeDetailPage({
                       )}
                     </div>
                   </div>
-                  <div className="prose prose-sm max-w-none prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-headings:text-foreground">
-                    <ReactMarkdown>{letter.letter_text}</ReactMarkdown>
+                  <div className="rounded-xl border border-border bg-muted/20 p-5">
+                    <div className="prose prose-sm max-w-none prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-headings:text-foreground">
+                      <ReactMarkdown>{letter.letter_text}</ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -594,7 +873,6 @@ export default function DisputeDetailPage({
 
         {/* Right column: Evidence Guide + Evidence */}
         <div className="space-y-4">
-          {/* Guided evidence checklist */}
           {dispute.status === "needs_response" && (
             <EvidenceChecklist
               disputeId={id}
@@ -702,7 +980,6 @@ export default function DisputeDetailPage({
             </div>
           </div>
 
-          {/* File upload dialog */}
           <EvidenceUpload
             disputeId={id}
             open={uploadOpen}
