@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
-import { FlowingLines } from "@/components/shared/flowing-lines";
+
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -37,8 +37,6 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 relative bg-background overflow-hidden">
-      <FlowingLines />
-
       <motion.div
         className="w-full max-w-sm relative"
         initial={{ opacity: 0, y: 20 }}

@@ -18,7 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { FlowingLines } from "@/components/shared/flowing-lines";
+
 
 const navItems = [
   { href: "/dashboard", icon: Inbox, label: "Disputes" },
@@ -128,11 +128,6 @@ export default function DashboardLayout({
 
         {/* Main content */}
         <main className="flex-1 ml-16 relative overflow-hidden">
-          {/* Animated flowing blue lines background */}
-          <div className="fixed inset-0 ml-16 pointer-events-none overflow-hidden">
-            <FlowingLines />
-          </div>
-
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}
