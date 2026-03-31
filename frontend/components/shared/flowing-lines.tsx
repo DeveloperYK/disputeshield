@@ -19,10 +19,10 @@ export function FlowingLines({ className = "" }: FlowingLinesProps) {
     let animationId: number;
     let dpr = window.devicePixelRatio || 1;
 
-    // Each line tracks its own progress (0 = not started, 1 = fully drawn & frozen)
+    // Two lines that twist around each other like a double helix
     const lines = [
-      { progress: 0, speed: 0.004, width: 4, opacity: 0.35, offsetY: 0 },
-      { progress: 0, speed: 0.003, width: 3.5, opacity: 0.25, offsetY: 0.12 },
+      { progress: 0, speed: 0.005 },
+      { progress: 0, speed: 0.004 },
     ];
 
     function resize() {
@@ -36,88 +36,91 @@ export function FlowingLines({ className = "" }: FlowingLinesProps) {
     resize();
     window.addEventListener("resize", resize);
 
-    // Generate a flowing path from bottom-left to top-right with gentle waves
-    function drawLine(
+    function getHelixPoint(t: number, w: number, h: number, lineIndex: number) {
+      // Base path: bottom-left corner to top-right corner
+      // Offset so lines stay in the left/bottom edges, away from center
+      const startX = -60;
+      const startY = h * 1.1;
+      const endX = w * 0.35;
+      const endY = -h * 0.1;
+
+      const baseX = startX + (endX - startX) * t;
+      const baseY = startY + (endY - startY) * t;
+
+      // Helix twist — the two lines orbit around the base path
+      // They're 180 degrees apart so they weave around each other
+      const twistFreq = 6; // number of full twists
+      const twistRadius = 35 + Math.sin(t * Math.PI) * 20; // wider in the middle
+      const angle = t * Math.PI * 2 * twistFreq + (lineIndex * Math.PI); // offset by 180deg
+
+      // Perpendicular offset (twist happens perpendicular to the path direction)
+      const pathAngle = Math.atan2(endY - startY, endX - startX);
+      const perpX = Math.cos(pathAngle + Math.PI / 2);
+      const perpY = Math.sin(pathAngle + Math.PI / 2);
+
+      const offsetX = Math.sin(angle) * twistRadius * perpX;
+      const offsetY = Math.sin(angle) * twistRadius * perpY;
+
+      return {
+        x: baseX + offsetX,
+        y: baseY + offsetY,
+      };
+    }
+
+    function drawHelixLine(
       w: number,
       h: number,
       progress: number,
-      lineWidth: number,
-      opacity: number,
-      yOffset: number
+      lineIndex: number
     ) {
       if (!ctx || progress <= 0) return;
 
-      // Path goes from bottom-left to top-right
-      const startX = -20;
-      const startY = h + 40;
-      const endX = w + 20;
-      const endY = -40;
-
-      const totalLength = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
-      const drawLength = totalLength * Math.min(progress, 1);
-
-      // How many steps to draw
-      const steps = 200;
+      const steps = 300;
       const stepsToRender = Math.floor(steps * Math.min(progress, 1));
-
       if (stepsToRender < 2) return;
 
+      // Main thick line
       ctx.beginPath();
-      ctx.strokeStyle = `rgba(59, 130, 246, ${opacity})`;
-      ctx.lineWidth = lineWidth;
+      ctx.strokeStyle = lineIndex === 0
+        ? "rgba(37, 99, 235, 0.55)"   // bright blue
+        : "rgba(59, 130, 246, 0.45)";  // slightly lighter blue
+      ctx.lineWidth = lineIndex === 0 ? 6 : 5;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
       for (let i = 0; i <= stepsToRender; i++) {
         const t = i / steps;
-
-        // Linear interpolation for base position (bottom-left to top-right)
-        const baseX = startX + (endX - startX) * t;
-        const baseY = startY + (endY - startY) * t + yOffset * h;
-
-        // Add gentle sine wave for organic flowing feel
-        const wave1 = Math.sin(t * Math.PI * 2.5) * 30;
-        const wave2 = Math.sin(t * Math.PI * 4 + 1.2) * 15;
-
-        const x = baseX + wave1 * 0.3;
-        const y = baseY + wave1 + wave2;
+        const pt = getHelixPoint(t, w, h, lineIndex);
 
         if (i === 0) {
-          ctx.moveTo(x, y);
+          ctx.moveTo(pt.x, pt.y);
         } else {
-          ctx.lineTo(x, y);
+          ctx.lineTo(pt.x, pt.y);
         }
       }
-
       ctx.stroke();
 
-      // Draw a subtle glow version underneath
+      // Glow layer
       ctx.beginPath();
-      ctx.strokeStyle = `rgba(96, 165, 250, ${opacity * 0.4})`;
-      ctx.lineWidth = lineWidth * 2.5;
+      ctx.strokeStyle = lineIndex === 0
+        ? "rgba(96, 165, 250, 0.2)"
+        : "rgba(147, 197, 253, 0.15)";
+      ctx.lineWidth = lineIndex === 0 ? 14 : 12;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
       for (let i = 0; i <= stepsToRender; i++) {
         const t = i / steps;
-        const baseX = startX + (endX - startX) * t;
-        const baseY = startY + (endY - startY) * t + yOffset * h;
-        const wave1 = Math.sin(t * Math.PI * 2.5) * 30;
-        const wave2 = Math.sin(t * Math.PI * 4 + 1.2) * 15;
-        const x = baseX + wave1 * 0.3;
-        const y = baseY + wave1 + wave2;
+        const pt = getHelixPoint(t, w, h, lineIndex);
 
         if (i === 0) {
-          ctx.moveTo(x, y);
+          ctx.moveTo(pt.x, pt.y);
         } else {
-          ctx.lineTo(x, y);
+          ctx.lineTo(pt.x, pt.y);
         }
       }
-
       ctx.stroke();
     }
-
-    let allFrozen = false;
 
     function draw() {
       if (!canvas || !ctx) return;
@@ -128,21 +131,19 @@ export function FlowingLines({ className = "" }: FlowingLinesProps) {
 
       let anyAnimating = false;
 
-      for (const line of lines) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
         if (line.progress < 1) {
           line.progress += line.speed;
           if (line.progress > 1) line.progress = 1;
           anyAnimating = true;
         }
 
-        drawLine(w, h, line.progress, line.width, line.opacity, line.offsetY);
+        drawHelixLine(w, h, line.progress, i);
       }
 
       if (anyAnimating) {
         animationId = requestAnimationFrame(draw);
-      } else {
-        allFrozen = true;
-        // Final render, then stop
       }
     }
 
