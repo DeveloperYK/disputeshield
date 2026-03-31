@@ -34,7 +34,7 @@ test.describe("Authentication Flow", () => {
     ).toBeVisible();
   });
 
-  test("register creates account and redirects to dashboard", async ({
+  test("register creates account and redirects to onboarding", async ({
     page,
   }) => {
     await page.goto("/register");
@@ -45,8 +45,8 @@ test.describe("Authentication Flow", () => {
 
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await page.waitForURL("**/dashboard", { timeout: 10000 });
-    await expect(page.getByRole("heading", { name: "E2E Test Store" })).toBeVisible();
+    await page.waitForURL("**/onboarding", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: /Welcome to DisputeShield/ })).toBeVisible();
   });
 
   test("login with valid credentials redirects to dashboard", async ({
@@ -59,7 +59,7 @@ test.describe("Authentication Flow", () => {
     await page.getByPlaceholder("you@business.com").fill(loginEmail);
     await page.getByPlaceholder("Min 8 characters").fill("testpass123");
     await page.getByRole("button", { name: "Create account" }).click();
-    await page.waitForURL("**/dashboard", { timeout: 10000 });
+    await page.waitForURL("**/onboarding", { timeout: 10000 });
 
     // Clear auth state and go to login
     await page.evaluate(() => localStorage.clear());

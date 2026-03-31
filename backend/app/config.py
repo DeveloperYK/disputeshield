@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     stripe_api_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_client_id: str = ""  # For Stripe Connect OAuth
+    stripe_price_starter: str = "price_starter"
+    stripe_price_growth: str = "price_growth"
+    stripe_price_agency: str = "price_agency"
 
     # Anthropic
     anthropic_api_key: str = ""

@@ -9,6 +9,9 @@ test.describe("Dashboard", () => {
     await page.getByPlaceholder("you@business.com").fill(email);
     await page.getByPlaceholder("Min 8 characters").fill("testpass123");
     await page.getByRole("button", { name: "Create account" }).click();
+    await page.waitForURL("**/onboarding", { timeout: 10000 });
+    // Skip onboarding to get to dashboard
+    await page.getByText("Skip setup").click();
     await page.waitForURL("**/dashboard", { timeout: 10000 });
   });
 

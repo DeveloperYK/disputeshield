@@ -13,14 +13,16 @@ from app.routes.auth import get_current_user
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
-# Price IDs — set in env or hardcode for now, replace with real Stripe price IDs
-TIER_PRICE_MAP = {
-    "starter": "price_starter",
-    "growth": "price_growth",
-    "agency": "price_agency",
-}
+def _tier_price_map() -> dict[str, str]:
+    return {
+        "starter": settings.stripe_price_starter,
+        "growth": settings.stripe_price_growth,
+        "agency": settings.stripe_price_agency,
+    }
 
-PRICE_TIER_MAP = {v: k for k, v in TIER_PRICE_MAP.items()}
+
+def _price_tier_map() -> dict[str, str]:
+    return {v: k for k, v in _tier_price_map().items()}
 
 
 class SubscriptionResponse(BaseModel):
@@ -58,14 +60,14 @@ def create_checkout_session(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if body.tier not in TIER_PRICE_MAP:
+    if body.tier not in _tier_price_map():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid tier: {body.tier}. Must be one of: {', '.join(TIER_PRICE_MAP.keys())}",
+            detail=f"Invalid tier: {body.tier}. Must be one of: {', '.join(_tier_price_map().keys())}",
         )
 
     stripe.api_key = settings.stripe_api_key
-    price_id = TIER_PRICE_MAP[body.tier]
+    price_id = _tier_price_map()[body.tier]
 
     session = stripe.checkout.Session.create(
         mode="subscription",
@@ -111,12 +113,29 @@ async def billing_webhook(request: Request, db: Session = Depends(get_db)):
     except (ValueError, stripe.SignatureVerificationError):
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
-    if event.type == "customer.subscription.updated":
+    if event.type == "checkout.session.completed":
+        _handle_checkout_completed(db, event.data.object)
+    elif event.type == "customer.subscription.updated":
         _handle_subscription_updated(db, event.data.object)
     elif event.type == "customer.subscription.deleted":
         _handle_subscription_deleted(db, event.data.object)
 
     return {"status": "ok"}
+
+
+def _handle_checkout_completed(db: Session, session: object) -> None:
+    """Save stripe_customer_id to user after first checkout."""
+    user_id = getattr(session, "metadata", {}).get("user_id")
+    customer_id = getattr(session, "customer", None)
+    if not user_id or not customer_id:
+        return
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return
+
+    user.stripe_customer_id = customer_id
+    db.commit()
 
 
 def _handle_subscription_updated(db: Session, subscription: object) -> None:
@@ -132,7 +151,7 @@ def _handle_subscription_updated(db: Session, subscription: object) -> None:
 
     if subscription.status == "active":
         price_id = subscription.items.data[0].price.id
-        user.subscription_tier = PRICE_TIER_MAP.get(price_id, "starter")
+        user.subscription_tier = _price_tier_map().get(price_id, "starter")
     elif subscription.status in ("past_due", "unpaid"):
         pass  # Keep current tier, payment will retry
 
