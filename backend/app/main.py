@@ -17,12 +17,13 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
+_origins = [settings.frontend_url]
+if settings.debug:
+    _origins.extend(["http://localhost:3000", "http://localhost:3003"])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.frontend_url,
-        "http://localhost:3003",
-    ],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
