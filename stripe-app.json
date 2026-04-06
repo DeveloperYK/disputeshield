@@ -1,0 +1,35 @@
+{
+  "id": "com.disputeshield.app",
+  "version": "1.0.0",
+  "name": "DisputeShield",
+  "icon": "./frontend/public/icon.png",
+  "stripe_api_access_type": "oauth",
+  "distribution_type": "public",
+  "sandbox_install_compatible": true,
+  "allowed_redirect_uris": [
+    "https://app.disputeshield.com/stripe/callback",
+    "http://localhost:3003/stripe/callback"
+  ],
+  "permissions": [
+    {
+      "permission": "charge_read",
+      "purpose": "Read charge details (amount, billing address, payment method) to build evidence for dispute defense"
+    },
+    {
+      "permission": "dispute_read",
+      "purpose": "Monitor incoming chargebacks and track dispute status changes"
+    },
+    {
+      "permission": "dispute_write",
+      "purpose": "Submit evidence and representment letters to defend against chargebacks"
+    },
+    {
+      "permission": "file_write",
+      "purpose": "Upload evidence documents (receipts, shipping confirmations) to Stripe"
+    }
+  ],
+  "post_install_action": {
+    "type": "external",
+    "url": "https://app.disputeshield.com/onboarding"
+  }
+}

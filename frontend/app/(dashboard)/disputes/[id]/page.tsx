@@ -27,6 +27,7 @@ import {
   TrendingUp,
   TrendingDown,
   Upload,
+  Download,
   Image,
   Paperclip,
   ArrowDown,
@@ -57,6 +58,7 @@ import {
   skipDispute,
   submitResponse,
   addEvidence,
+  pullEvidence,
 } from "@/lib/api";
 import type {
   Dispute,
@@ -465,6 +467,7 @@ export default function DisputeDetailPage({
   const [addEvidenceOpen, setAddEvidenceOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadPreselect, setUploadPreselect] = useState<string | undefined>(undefined);
+  const [pulling, setPulling] = useState(false);
   const [evidenceRefresh, setEvidenceRefresh] = useState(0);
   const [showLetterBanner, setShowLetterBanner] = useState(false);
   const [newEvidence, setNewEvidence] = useState({
@@ -889,6 +892,32 @@ export default function DisputeDetailPage({
               Evidence ({evidence.length})
             </h3>
             <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={pulling}
+                onClick={async () => {
+                  setPulling(true);
+                  try {
+                    const pulled = await pullEvidence(id);
+                    if (pulled.length > 0) {
+                      setEvidence((prev) => {
+                        const existingIds = new Set(prev.map((e) => e.id));
+                        const newItems = pulled.filter((e) => !existingIds.has(e.id));
+                        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+                      });
+                      setEvidenceRefresh((n) => n + 1);
+                    }
+                  } catch {
+                    // silently handle — evidence may already exist
+                  } finally {
+                    setPulling(false);
+                  }
+                }}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
+                title="Pull evidence from Stripe"
+              >
+                {pulling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              </button>
               <button
                 type="button"
                 onClick={() => setUploadOpen(true)}

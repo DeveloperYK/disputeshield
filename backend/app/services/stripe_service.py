@@ -80,13 +80,28 @@ def pull_evidence_from_stripe(
     db: Session, dispute: Dispute, access_token: str
 ) -> list[Evidence]:
     """Pull available evidence from the Stripe charge and payment intent."""
+    # Deduplication: skip if we already auto-pulled for this dispute.
+    existing_auto = (
+        db.query(Evidence)
+        .filter(
+            Evidence.dispute_id == dispute.id,
+            Evidence.source == EvidenceSource.STRIPE_AUTO,
+        )
+        .all()
+    )
+    if existing_auto:
+        return existing_auto
+
     evidence_items = []
 
     try:
-        charge = stripe.Charge.retrieve(
+        charge_obj = stripe.Charge.retrieve(
             dispute.stripe_charge_id,
             api_key=access_token,
         )
+        # Convert StripeObject to plain dict — StripeObject doesn't
+        # support .get() which breaks downstream code.
+        charge = charge_obj.to_dict() if hasattr(charge_obj, "to_dict") else dict(charge_obj)
     except stripe.StripeError:
         return evidence_items
 

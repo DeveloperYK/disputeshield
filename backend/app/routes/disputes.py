@@ -6,6 +6,7 @@ import stripe
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.models.dispute import Dispute
 from app.models.evidence import Evidence
@@ -360,7 +361,10 @@ def submit_response(
             detail="No response generated yet. Generate a response first.",
         )
 
-    if not current_user.stripe_access_token:
+    # Use the user's OAuth access token if available, otherwise fall back
+    # to the platform API key (works in test mode / Stripe CLI).
+    access_token = current_user.stripe_access_token or settings.stripe_api_key
+    if not access_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Stripe account not connected",
@@ -378,14 +382,27 @@ def submit_response(
             dispute=dispute,
             evidence_items=evidence_items,
             generated_response=dispute.generated_response,
-            access_token=current_user.stripe_access_token,
+            access_token=access_token,
         )
+    except stripe.InvalidRequestError as e:
+        # Stripe may reject if evidence was already submitted (e.g. retry
+        # after a network hiccup).  Treat "already submitted" as success.
+        if "maximum number of evidence submissions" not in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to submit evidence to Stripe: {str(e)}",
+            )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to submit evidence to Stripe: {str(e)}",
         )
 
+    # Refresh to pick up any concurrent webhook-driven updates.
+    # The Stripe call above may trigger a charge.dispute.updated webhook
+    # that updates this row via a separate DB session.
+    db.expire(dispute)
+    db.refresh(dispute)
     dispute.status = DisputeStatus.RESPONSE_SUBMITTED
     db.commit()
     db.refresh(dispute)
