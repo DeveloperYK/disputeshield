@@ -10,6 +10,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.dispute import Dispute
+    from app.models.message import Message
 
 
 class User(Base):
@@ -43,3 +44,4 @@ class User(Base):
     )
 
     disputes: Mapped[list["Dispute"]] = relationship(back_populates="user")
+    messages: Mapped[list["Message"]] = relationship(back_populates="user")

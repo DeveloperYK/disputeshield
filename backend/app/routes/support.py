@@ -1,14 +1,15 @@
+"""In-app chat support system."""
 import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-
-import resend
 
 from app.config import settings
 from app.database import get_db
+from app.models.message import Message
 from app.models.user import User
 from app.routes.auth import get_current_user
 
@@ -17,48 +18,87 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/support", tags=["support"])
 
 
-class SupportMessage(BaseModel):
-    type: str  # "bug" or "feature" or "general"
-    message: str
-    page_url: Optional[str] = None
+class SendMessage(BaseModel):
+    content: str
 
 
-@router.post("/message")
-def submit_support_message(
-    msg: SupportMessage,
+class MessageResponse(BaseModel):
+    id: str
+    content: str
+    is_admin: bool
+    read: bool
+    created_at: str
+
+    model_config = {"from_attributes": True}
+
+
+def _to_response(msg: Message) -> dict:
+    return {
+        "id": str(msg.id),
+        "content": msg.content,
+        "is_admin": msg.is_admin,
+        "read": msg.read,
+        "created_at": msg.created_at.isoformat() if msg.created_at else "",
+    }
+
+
+@router.get("/messages")
+def get_messages(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    if not msg.message.strip():
+    """Get chat messages for the current user."""
+    messages = (
+        db.query(Message)
+        .filter(Message.user_id == current_user.id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )
+    # Mark admin messages as read
+    unread = [m for m in messages if m.is_admin and not m.read]
+    for m in unread:
+        m.read = True
+    if unread:
+        db.commit()
+
+    return [_to_response(m) for m in messages]
+
+
+@router.post("/messages")
+def send_message(
+    body: SendMessage,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Send a chat message from the user."""
+    if not body.content.strip():
         raise HTTPException(status_code=422, detail="Message cannot be empty")
 
-    if not settings.resend_api_key or not settings.admin_email:
-        logger.warning("Support message received but email not configured")
-        return {"status": "received"}
+    msg = Message(
+        user_id=current_user.id,
+        content=body.content.strip(),
+        is_admin=False,
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return _to_response(msg)
 
-    resend.api_key = settings.resend_api_key
-    type_labels = {"bug": "Bug Report", "feature": "Feature Request", "general": "General"}
-    label = type_labels.get(msg.type, "General")
 
-    try:
-        resend.Emails.send({
-            "from": settings.email_from,
-            "to": [settings.admin_email],
-            "reply_to": current_user.email,
-            "subject": f"[{label}] from {current_user.email}",
-            "html": f"""
-            <div style="font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto;">
-                <h2 style="color: #0a0f1e;">{label}</h2>
-                <p><strong>From:</strong> {current_user.email} ({current_user.business_name or "No business name"})</p>
-                {f'<p><strong>Page:</strong> {msg.page_url}</p>' if msg.page_url else ''}
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 16px 0;">
-                    <p style="margin: 0; white-space: pre-wrap;">{msg.message}</p>
-                </div>
-                <p style="color: #64748b; font-size: 13px;">Reply to this email to respond directly to the user.</p>
-            </div>
-            """,
-        })
-        logger.info(f"Support message ({msg.type}) from {current_user.email}")
-    except Exception:
-        logger.exception("Failed to send support email")
-
-    return {"status": "received"}
+@router.get("/unread-count")
+def unread_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get count of unread admin replies for the current user."""
+    count = (
+        db.query(func.count(Message.id))
+        .filter(
+            Message.user_id == current_user.id,
+            Message.is_admin == True,  # noqa: E712
+            Message.read == False,  # noqa: E712
+        )
+        .scalar()
+        or 0
+    )
+    return {"unread": count}
