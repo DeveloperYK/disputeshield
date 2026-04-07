@@ -11,21 +11,20 @@ import {
   Check,
   Link2,
   ExternalLink,
-  CreditCard,
   Loader2,
   Eye,
   FileText,
   Send,
   BarChart3,
   Sparkles,
-  Crown,
+  PartyPopper,
   Clock,
   Target,
   TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { getConnectUrl, createCheckout } from "@/lib/api";
+import { getConnectUrl } from "@/lib/api";
 
 /* ─── step config ─── */
 const STEPS = ["welcome", "how", "connect", "plan"] as const;
@@ -375,7 +374,6 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>("welcome");
   const [activeDemo, setActiveDemo] = useState(0);
   const [connecting, setConnecting] = useState(false);
-  const [checkingOut, setCheckingOut] = useState<string | null>(null);
 
   const stepIndex = useMemo(() => STEPS.indexOf(step), [step]);
 
@@ -399,16 +397,6 @@ export default function OnboardingPage() {
       window.location.href = url;
     } catch {
       setConnecting(false);
-    }
-  }
-
-  async function handleCheckout(tier: string) {
-    setCheckingOut(tier);
-    try {
-      const { checkout_url } = await createCheckout(tier);
-      window.location.href = checkout_url;
-    } catch {
-      setCheckingOut(null);
     }
   }
 
@@ -723,136 +711,66 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* ── STEP 4: Choose Plan ── */}
+          {/* ── STEP 4: You're All Set ── */}
           {step === "plan" && (
             <motion.div
               key="plan"
-              className="max-w-3xl w-full"
+              className="max-w-lg text-center"
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -40 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="text-center mb-10">
-                <motion.h2
-                  className="text-3xl font-bold text-foreground mb-3"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  Pick your plan
-                </motion.h2>
-                <motion.p
-                  className="text-muted-foreground"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  Flat pricing. No percentage cut. Ever.
-                </motion.p>
-              </div>
+              <motion.div
+                className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-500/20"
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
+              >
+                <PartyPopper className="w-10 h-10 text-white" />
+              </motion.div>
 
-              <div className="grid md:grid-cols-3 gap-5 mb-8">
-                {[
-                  {
-                    tier: "starter",
-                    name: "Starter",
-                    price: 29,
-                    features: [
-                      "Up to 10 chargebacks/mo",
-                      "Win probability scoring",
-                      "Evidence compilation",
-                      "Email notifications",
-                    ],
-                    popular: false,
-                  },
-                  {
-                    tier: "growth",
-                    name: "Growth",
-                    price: 49,
-                    features: [
-                      "Unlimited chargebacks",
-                      "AI response generation",
-                      "Full analytics dashboard",
-                      "Priority email support",
-                      "Evidence guidance",
-                    ],
-                    popular: true,
-                  },
-                  {
-                    tier: "agency",
-                    name: "Agency",
-                    price: 99,
-                    features: [
-                      "Everything in Growth",
-                      "Multiple Stripe accounts",
-                      "Team access",
-                      "Dedicated support",
-                      "Custom integrations",
-                    ],
-                    popular: false,
-                  },
-                ].map((plan, i) => (
-                  <motion.div
-                    key={plan.tier}
-                    className={`relative rounded-2xl border p-6 flex flex-col ${
-                      plan.popular
-                        ? "border-primary bg-primary/5 shadow-xl shadow-primary/10 scale-105"
-                        : "border-border bg-card"
-                    }`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 + i * 0.1 }}
-                  >
-                    {plan.popular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1">
-                        <Crown className="w-3 h-3" />
-                        Most Popular
-                      </div>
-                    )}
-                    <h3 className="font-semibold text-foreground text-lg">{plan.name}</h3>
-                    <div className="mt-2 mb-4">
-                      <span className="text-3xl font-bold text-foreground">${plan.price}</span>
-                      <span className="text-muted-foreground text-sm">/mo</span>
-                    </div>
-                    <ul className="space-y-2 mb-6 flex-1">
-                      {plan.features.map((f) => (
-                        <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <Button
-                      variant={plan.popular ? "default" : "secondary"}
-                      onClick={() => handleCheckout(plan.tier)}
-                      disabled={checkingOut !== null}
-                      className="w-full"
-                    >
-                      {checkingOut === plan.tier ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          Get {plan.name}
-                          <ArrowRight className="w-4 h-4 ml-1" />
-                        </>
-                      )}
-                    </Button>
-                  </motion.div>
-                ))}
-              </div>
+              <motion.h2
+                className="text-3xl font-bold text-foreground mb-3"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                You&apos;re all set!
+              </motion.h2>
+
+              <motion.p
+                className="text-lg text-muted-foreground mb-4 max-w-sm mx-auto leading-relaxed"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                DisputeShield is completely free during our beta. We&apos;ll notify you before any pricing changes.
+              </motion.p>
 
               <motion.div
-                className="text-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium mb-8"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.6 }}
               >
-                <button
-                  onClick={skip}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                <Sparkles className="w-4 h-4" />
+                Full access — no credit card needed
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+              >
+                <Button
+                  size="lg"
+                  onClick={() => router.push("/dashboard")}
+                  className="h-12 px-8 text-base group"
                 >
-                  Start with the free trial — upgrade later
-                </button>
+                  Go to Dashboard
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
               </motion.div>
             </motion.div>
           )}

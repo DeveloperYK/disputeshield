@@ -15,6 +15,34 @@ def _is_configured() -> bool:
     return bool(settings.resend_api_key)
 
 
+def send_signup_notification(user_email: str, business_name: str) -> bool:
+    """Notify admin when a new user registers."""
+    if not _is_configured() or not settings.admin_email:
+        return False
+    resend.api_key = settings.resend_api_key
+    try:
+        resend.Emails.send({
+            "from": settings.email_from,
+            "to": [settings.admin_email],
+            "subject": f"New signup: {user_email}",
+            "html": f"""
+            <div style="font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto;">
+                <h2 style="color: #0a0f1e;">New User Signup</h2>
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin: 16px 0;">
+                    <p style="margin: 0 0 8px;"><strong>Email:</strong> {user_email}</p>
+                    <p style="margin: 0;"><strong>Business:</strong> {business_name or "Not provided"}</p>
+                </div>
+                <p style="color: #64748b; font-size: 13px;">— DisputeShield</p>
+            </div>
+            """,
+        })
+        logger.info(f"Signup notification sent for {user_email}")
+        return True
+    except Exception:
+        logger.exception(f"Failed to send signup notification for {user_email}")
+        return False
+
+
 def send_new_dispute_alert(
     to_email: str,
     business_name: str,

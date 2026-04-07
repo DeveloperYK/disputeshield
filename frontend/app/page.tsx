@@ -452,7 +452,7 @@ const features = [
   },
 ];
 
-/* ─── Pricing ─── */
+/* ─── Pricing (future tiers, shown greyed out during beta) ─── */
 const tiers = [
   {
     name: "Starter",
@@ -749,24 +749,59 @@ export default function LandingPage() {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          {/* Free beta banner */}
+          <motion.div
+            className="rounded-2xl border-2 border-emerald-500 bg-emerald-50 p-8 md:p-10 text-center mb-10 shadow-elevated relative overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <motion.div
+              className="absolute inset-0 opacity-10"
+              style={{
+                background:
+                  "radial-gradient(circle at 50% 50%, rgba(5, 150, 105, 0.3), transparent 70%)",
+              }}
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100 border border-emerald-200 mb-4">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-medium text-emerald-700">Beta</span>
+              </div>
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+                Free during beta
+              </h3>
+              <p className="text-lg text-muted-foreground max-w-lg mx-auto mb-6">
+                Get in early — completely free while we&apos;re in beta. Full access to every feature, no credit card required.
+              </p>
+              <Link href="/register">
+                <Button size="lg" className="text-base px-8 shadow-elevated">
+                  Get started free
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
+
+          {/* Future tiers (greyed out) */}
+          <div className="grid md:grid-cols-3 gap-6 opacity-50 pointer-events-none">
             {tiers.map((tier, i) => (
               <motion.div
                 key={tier.name}
-                className={`rounded-2xl border p-8 ${
+                className={`rounded-2xl border p-8 relative ${
                   tier.popular
-                    ? "border-primary bg-card shadow-elevated relative scale-[1.02]"
-                    : "border-border bg-card shadow-card hover:shadow-elevated transition-shadow duration-200"
+                    ? "border-primary/40 bg-card shadow-card"
+                    : "border-border bg-card shadow-card"
                 }`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.6 + i * 0.1 }}
               >
-                {tier.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-primary-foreground text-xs font-medium">
-                    Most popular
-                  </div>
-                )}
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                  Coming soon
+                </div>
                 <h3 className="text-xl font-semibold text-foreground">
                   {tier.name}
                 </h3>
@@ -779,14 +814,6 @@ export default function LandingPage() {
                   </span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
-                <Link href="/register">
-                  <Button
-                    className="w-full mb-6"
-                    variant={tier.popular ? "default" : "secondary"}
-                  >
-                    Start free trial
-                  </Button>
-                </Link>
                 <ul className="space-y-3">
                   {tier.features.map((f) => (
                     <li
@@ -861,13 +888,15 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-foreground">
-              DisputeShield
-            </span>
+            <span className="font-semibold text-foreground">DisputeShield</span>
+          </div>
+          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+            <Link href="/support" className="hover:text-foreground transition-colors">Support</Link>
+            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
           </div>
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} DisputeShield. All rights
-            reserved.
+            &copy; {new Date().getFullYear()} DisputeShield. All rights reserved.
           </p>
         </div>
       </footer>

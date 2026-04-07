@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import Token, UserLogin, UserRegister, UserResponse
+from app.services.email_service import send_signup_notification
 from app.services.auth import (
     authenticate_user,
     create_user,
@@ -55,6 +56,10 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
             detail="Password must be at least 8 characters",
         )
     user = create_user(db, user_data)
+    try:
+        send_signup_notification(user.email, user.business_name or "")
+    except Exception:
+        pass  # Don't block registration if email fails
     return UserResponse.model_validate(user)
 
 

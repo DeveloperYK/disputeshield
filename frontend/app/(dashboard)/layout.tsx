@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { InteractiveGrid } from "@/components/shared/interactive-grid";
+import { SupportWidget } from "@/components/shared/support-widget";
 import {
   Tooltip,
   TooltipContent,
@@ -145,6 +146,7 @@ export default function DashboardLayout({
             </motion.div>
           </AnimatePresence>
         </main>
+        <SupportWidget />
       </div>
     </TooltipProvider>
   );

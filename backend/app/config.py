@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # Email (Resend)
     resend_api_key: str = ""
     email_from: str = "DisputeShield <alerts@disputeshield.com>"
+    admin_email: str = ""
 
     # Frontend
     frontend_url: str = "http://localhost:3000"
