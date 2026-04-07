@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "DisputeShield — AI Chargeback Defense",
   description:
     "Win more chargebacks with AI-powered analysis. Know when to fight, and win when you do.",
+  other: {
+    "google": "notranslate",
+  },
 };
 
 export default function RootLayout({
@@ -27,7 +30,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      translate="no"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased notranslate`}
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>{children}</AuthProvider>
