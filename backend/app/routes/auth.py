@@ -44,33 +44,23 @@ def get_current_user(
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    import traceback as tb
-    import logging
-    _logger = logging.getLogger(__name__)
-
+    existing = get_user_by_email(db, user_data.email)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered",
+        )
+    if len(user_data.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must be at least 8 characters",
+        )
+    user = create_user(db, user_data)
     try:
-        existing = get_user_by_email(db, user_data.email)
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already registered",
-            )
-        if len(user_data.password) < 8:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Password must be at least 8 characters",
-            )
-        user = create_user(db, user_data)
-        try:
-            send_signup_notification(user.email, user.business_name or "")
-        except Exception:
-            pass  # Don't block registration if email fails
-        return UserResponse.model_validate(user)
-    except HTTPException:
-        raise
-    except Exception as e:
-        _logger.error("Register failed: %s", tb.format_exc())
-        raise HTTPException(status_code=500, detail=f"Registration error: {e}")
+        send_signup_notification(user.email, user.business_name or "")
+    except Exception:
+        pass  # Don't block registration if email fails
+    return UserResponse.model_validate(user)
 
 
 @router.post("/login", response_model=Token)

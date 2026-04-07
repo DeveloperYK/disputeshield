@@ -207,31 +207,23 @@ def create_admin(
     db: Session = Depends(get_db),
 ):
     """Create admin account or return existing one."""
-    import traceback
+    admin_email = settings.admin_email
+    if not admin_email:
+        raise HTTPException(status_code=400, detail="ADMIN_EMAIL not set")
 
-    try:
-        admin_email = settings.admin_email
-        if not admin_email:
-            raise HTTPException(status_code=400, detail="ADMIN_EMAIL not set")
+    existing = get_user_by_email(db, admin_email)
+    if existing:
+        token = create_access_token({"sub": existing.email})
+        return {"status": "exists", "email": existing.email, "token": token}
 
-        existing = get_user_by_email(db, admin_email)
-        if existing:
-            token = create_access_token({"sub": existing.email})
-            return {"status": "exists", "email": existing.email, "token": token}
+    user = User(
+        email=admin_email,
+        hashed_password=hash_password("DisputeShield2026"),
+        business_name="DisputeShield Admin",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
 
-        user = User(
-            email=admin_email,
-            hashed_password=hash_password("DisputeShield2026"),
-            business_name="DisputeShield Admin",
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-        token = create_access_token({"sub": user.email})
-        return {"status": "created", "email": user.email, "token": token}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("create-admin failed: %s", traceback.format_exc())
-        return {"status": "error", "detail": str(e), "traceback": traceback.format_exc()}
+    token = create_access_token({"sub": user.email})
+    return {"status": "created", "email": user.email, "token": token}
