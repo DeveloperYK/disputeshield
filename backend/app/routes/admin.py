@@ -1,16 +1,17 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import func, inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import get_db
+from app.database import Base, engine, get_db
 from app.models.dispute import Dispute
 from app.models.message import Message
 from app.models.user import User
 from app.routes.auth import get_current_user
+from app.services.auth import create_access_token, get_user_by_email, hash_password
 
 logger = logging.getLogger(__name__)
 
@@ -182,3 +183,47 @@ def admin_reply(
         "read": msg.read,
         "created_at": msg.created_at.isoformat() if msg.created_at else "",
     }
+
+
+# --- Setup utilities (protected by SECRET_KEY, not JWT) ---
+
+
+def _require_secret(authorization: str = Header(default="")) -> None:
+    if authorization != f"Bearer {settings.secret_key}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@router.post("/setup/ensure-tables")
+def ensure_tables(_: None = Depends(_require_secret)):
+    """Create any missing database tables."""
+    Base.metadata.create_all(bind=engine)
+    inspector = sa_inspect(engine)
+    return {"status": "ok", "tables": inspector.get_table_names()}
+
+
+@router.post("/setup/create-admin")
+def create_admin(
+    _: None = Depends(_require_secret),
+    db: Session = Depends(get_db),
+):
+    """Create admin account or return existing one."""
+    admin_email = settings.admin_email
+    if not admin_email:
+        raise HTTPException(status_code=400, detail="ADMIN_EMAIL not set")
+
+    existing = get_user_by_email(db, admin_email)
+    if existing:
+        token = create_access_token({"sub": existing.email})
+        return {"status": "exists", "email": existing.email, "token": token}
+
+    user = User(
+        email=admin_email,
+        hashed_password=hash_password("DisputeShield2026"),
+        business_name="DisputeShield Admin",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    token = create_access_token({"sub": user.email})
+    return {"status": "created", "email": user.email, "token": token}
